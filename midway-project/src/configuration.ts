@@ -5,6 +5,7 @@ import * as info from '@midwayjs/info';
 import * as swagger from '@midwayjs/swagger';
 import * as orm from '@midwayjs/typeorm';
 import { join } from 'path';
+import * as cors from '@koa/cors'; // 新增CORS导入
 // import { DefaultErrorFilter } from './filter/default.filter';
 // import { NotFoundFilter } from './filter/notfound.filter';
 import { ReportMiddleware } from './middleware/report.middleware';
@@ -27,6 +28,8 @@ export class MainConfiguration {
   app: koa.Application;
 
   async onReady() {
+    // add CORS middleware
+    this.app.use(cors());
     // add middleware
     this.app.useMiddleware([ReportMiddleware]);
     // add filter

@@ -14,7 +14,7 @@ export default {
         database: 'webapp.sqlite',
         synchronize: true,
         logging: true,
-        entities: [__dirname + '/../entity/*.ts', User]
+        entities: [User]
       }
     }
   },

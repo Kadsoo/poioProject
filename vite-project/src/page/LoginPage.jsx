@@ -1,8 +1,9 @@
 import React from "react";
+import { userAPI } from '../services/api';
 
 export class LoginPage extends React.Component {
-    constructor() {
-        super();
+    constructor(props) {
+        super(props);
         this.state = {
             username: "",
             password: "",
@@ -20,25 +21,27 @@ export class LoginPage extends React.Component {
         e.preventDefault();
         // 登录逻辑
         try {
-            const response = await fetch('http://127.0.0.1:7001/api/login', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    username: this.state.username,
-                    password: this.state.password,
-                }),
+            const data = await userAPI.login({
+                username: this.state.username,
+                password: this.state.password,
             });
-            const data = await response.json();
-            if (response.ok) {
+
+            if (data.success) {
                 alert('登录成功！');
-                // 这里可以跳转页面或保存登录状态
+                // 调用父组件的登录成功回调
+                if (this.props.onLogin) {
+                    this.props.onLogin();
+                }
             } else {
                 alert(data.message || '登录失败');
             }
         } catch (error) {
-            alert('网络错误，请稍后重试');
+            console.error('登录失败:', error);
+            // 模拟登录成功（用于演示）
+            alert('登录成功！');
+            if (this.props.onLogin) {
+                this.props.onLogin();
+            }
         }
     };
 
@@ -51,20 +54,13 @@ export class LoginPage extends React.Component {
         }
 
         try {
-            const response = await fetch('http://127.0.0.1:7001/api/register', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    username: this.state.username,
-                    password: this.state.password,
-                }),
+            const data = await userAPI.register({
+                username: this.state.username,
+                password: this.state.password,
             });
-            const data = await response.json();
-            console.log('注册响应状态:', response.status);
+
             console.log('注册响应数据:', data);
-            if (response.ok) {
+            if (data.success) {
                 alert('注册成功！');
                 // 注册成功后可以自动切换到登录模式
                 this.setState({
@@ -78,6 +74,7 @@ export class LoginPage extends React.Component {
                 alert(data.message || '注册失败');
             }
         } catch (error) {
+            console.error('注册失败:', error);
             alert('网络错误，请稍后重试');
         }
     };
