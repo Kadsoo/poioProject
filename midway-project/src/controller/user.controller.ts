@@ -1,158 +1,97 @@
-import { Inject, Controller, Post, Get, Body, Param } from '@midwayjs/core';
-import { Context } from '@midwayjs/koa';
+import { Controller, Get, Post, Put, Param, Body, Inject } from '@midwayjs/core';
 import { UserService } from '../service/user.service';
 
-@Controller('/user')
+@Controller('/api/user')
 export class UserController {
-  @Inject()
-  ctx: Context;
+  @Inject() userService: UserService;
 
-  @Inject()
-  userService: UserService;
-
-  @Post('/login')
-  async login(@Body('username') username: string, @Body('password') password: string) {
-    try {
-      // 验证输入参数
-      if (!username || !password) {
-        this.ctx.status = 400;
-        return {
-          success: false,
-          message: '用户名和密码不能为空',
-          data: null
-        };
-      }
-
-      const user = await this.userService.find(username, password);
-      if (user) {
-        // 登录成功，返回用户信息（不包含密码）
-        const { password: _, ...userInfo } = user;
-        return {
-          success: true,
-          message: '登录成功',
-          data: userInfo
-        };
-      } else {
-        this.ctx.status = 401;
-        return {
-          success: false,
-          message: '用户名或密码错误',
-          data: null
-        };
-      }
-    } catch (error) {
-      this.ctx.status = 500;
-      console.error('登录失败:', error);
-      return {
-        success: false,
-        message: '服务器内部错误',
-        data: null
-      };
-    }
-  }
-
+  // 用户注册
   @Post('/register')
-  async register(@Body('username') username: string, @Body('password') password: string) {
+  async register(@Body() data: any) {
     try {
-      // 验证输入参数
+      const { username, password } = data;
+
+      // 验证必填字段
       if (!username || !password) {
-        this.ctx.status = 400;
-        return {
-          success: false,
-          message: '用户名和密码不能为空',
-          data: null
-        };
+        return { success: false, message: '用户名和密码不能为空' };
       }
 
-      // 验证用户名长度
       if (username.length < 3 || username.length > 20) {
-        this.ctx.status = 400;
-        return {
-          success: false,
-          message: '用户名长度必须在3-20个字符之间',
-          data: null
-        };
+        return { success: false, message: '用户名长度必须在3-20个字符之间' };
       }
 
-      // 验证密码长度
       if (password.length < 6) {
-        this.ctx.status = 400;
-        return {
-          success: false,
-          message: '密码长度不能少于6个字符',
-          data: null
-        };
+        return { success: false, message: '密码长度不能少于6个字符' };
       }
 
-      const result = await this.userService.register(username, password);
-      // 注册成功，返回用户信息（不包含密码）
-      const { password: _, ...userInfo } = result;
-      return {
-        success: true,
-        message: '注册成功',
-        data: userInfo
-      };
+      const result = await this.userService.register(data);
+      return { success: true, data: result };
     } catch (error) {
-      this.ctx.status = 400;
-      console.error('注册失败:', error);
-      return {
-        success: false,
-        message: error.message || '注册失败',
-        data: null
-      };
+      return { success: false, message: error.message };
     }
   }
 
-  @Get('/profile/:id')
-  async getUserProfile(@Param('id') id: number) {
+  // 用户登录
+  @Post('/login')
+  async login(@Body() data: any) {
     try {
-      const user = await this.userService.getUserById(id);
-      if (user) {
-        // 返回用户信息（不包含密码）
-        const { password: _, ...userInfo } = user;
-        return {
-          success: true,
-          message: '获取用户信息成功',
-          data: userInfo
-        };
-      } else {
-        this.ctx.status = 404;
-        return {
-          success: false,
-          message: '用户不存在',
-          data: null
-        };
+      const { username, password } = data;
+
+      if (!username || !password) {
+        return { success: false, message: '用户名和密码不能为空' };
       }
+
+      const result = await this.userService.login(username, password);
+      return { success: true, data: result };
     } catch (error) {
-      this.ctx.status = 500;
-      console.error('获取用户信息失败:', error);
-      return {
-        success: false,
-        message: '服务器内部错误',
-        data: null
-      };
+      return { success: false, message: error.message };
     }
   }
 
+  // 检查用户名是否可用
   @Get('/check-username/:username')
   async checkUsername(@Param('username') username: string) {
     try {
-      const existingUser = await this.userService.findByUsername(username);
-      return {
-        success: true,
-        message: '检查完成',
-        data: {
-          available: !existingUser
-        }
-      };
+      const isAvailable = await this.userService.checkUsername(username);
+      return { success: true, data: { isAvailable } };
     } catch (error) {
-      this.ctx.status = 500;
-      console.error('检查用户名失败:', error);
-      return {
-        success: false,
-        message: '服务器内部错误',
-        data: null
-      };
+      return { success: false, message: error.message };
+    }
+  }
+
+  // 获取用户信息
+  @Get('/:userId')
+  async getUserInfo(@Param('userId') userId: number) {
+    try {
+      const user = await this.userService.getUserInfo(userId);
+      if (!user) {
+        return { success: false, message: '用户不存在' };
+      }
+      return { success: true, data: user };
+    } catch (error) {
+      return { success: false, message: error.message };
+    }
+  }
+
+  // 更新用户信息
+  @Put('/:userId')
+  async updateUserInfo(@Param('userId') userId: number, @Body() data: any) {
+    try {
+      const user = await this.userService.updateUserInfo(userId, data);
+      return { success: true, data: user };
+    } catch (error) {
+      return { success: false, message: error.message };
+    }
+  }
+
+  // 获取用户统计数据
+  @Get('/:userId/stats')
+  async getUserStats(@Param('userId') userId: number) {
+    try {
+      const stats = await this.userService.getUserStats(userId);
+      return { success: true, data: stats };
+    } catch (error) {
+      return { success: false, message: error.message };
     }
   }
 }

@@ -1,16 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import SquareForBx from './SquareForBx';
-import CartPage from './CartPage';
 import UserSpace from './UserSpace';
+import BlindBoxCreatePage from './BlindBoxCreatePage';
+import BlindBoxDetailPage from './BlindBoxDetailPage';
+import BlindBoxManagePage from './BlindBoxManagePage';
+import NotificationPage from './NotificationPage';
 import { blindBoxAPI } from '../services/api';
 
 const HomePage = ({ onLogout }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('全部');
-    const [selectedRarity, setSelectedRarity] = useState('全部');
-    const [currentPage, setCurrentPage] = useState('home'); // 'home', 'cart', or 'userSpace'
+    const [selectedSort, setSelectedSort] = useState('最新发布');
+    const [currentPage, setCurrentPage] = useState('home'); // 'home', 'cart', 'userSpace', 'detail', 'manage'
     const [blindBoxes, setBlindBoxes] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [showCreatePage, setShowCreatePage] = useState(false);
+    const [selectedBlindBox, setSelectedBlindBox] = useState(null);
+    const user = JSON.parse(localStorage.getItem('user'));
+    const [notification, setNotification] = useState(null);
 
     // 从后端获取盲盒数据
     useEffect(() => {
@@ -35,7 +42,6 @@ const HomePage = ({ onLogout }) => {
                     price: 59,
                     category: "泡泡玛特",
                     series: "POP MART 系列",
-                    rarity: "SSR",
                     likes: 128,
                     postTime: "2小时前",
                     user: {
@@ -49,6 +55,10 @@ const HomePage = ({ onLogout }) => {
                             content: "太幸运了！我也想要这个隐藏款",
                             time: "1小时前"
                         }
+                    ],
+                    items: [
+                        { name: "泡泡玛特系列隐藏款", probability: 0.001 },
+                        { name: "POP MART 系列普通款", probability: 0.999 }
                     ]
                 },
                 {
@@ -59,7 +69,6 @@ const HomePage = ({ onLogout }) => {
                     price: 89,
                     category: "52TOYS",
                     series: "猛兽匣系列",
-                    rarity: "SR",
                     likes: 95,
                     postTime: "4小时前",
                     user: {
@@ -73,6 +82,10 @@ const HomePage = ({ onLogout }) => {
                             content: "52TOYS确实不错，支持国货！",
                             time: "3小时前"
                         }
+                    ],
+                    items: [
+                        { name: "52TOYS猛兽匣系列SR", probability: 0.01 },
+                        { name: "52TOYS猛兽匣系列R", probability: 0.99 }
                     ]
                 },
                 {
@@ -83,7 +96,6 @@ const HomePage = ({ onLogout }) => {
                     price: 129,
                     category: "万代",
                     series: "高达模型系列",
-                    rarity: "R",
                     likes: 67,
                     postTime: "6小时前",
                     user: {
@@ -97,6 +109,10 @@ const HomePage = ({ onLogout }) => {
                             content: "新手适合吗？想入坑",
                             time: "5小时前"
                         }
+                    ],
+                    items: [
+                        { name: "万代高达模型盲盒R", probability: 0.9 },
+                        { name: "万代高达模型盲盒SR", probability: 0.1 }
                     ]
                 },
                 {
@@ -107,7 +123,6 @@ const HomePage = ({ onLogout }) => {
                     price: 199,
                     category: "乐高",
                     series: "星球大战系列",
-                    rarity: "R",
                     likes: 156,
                     postTime: "8小时前",
                     user: {
@@ -121,6 +136,10 @@ const HomePage = ({ onLogout }) => {
                             content: "千年隼号太经典了！",
                             time: "7小时前"
                         }
+                    ],
+                    items: [
+                        { name: "乐高星球大战盲盒R", probability: 0.9 },
+                        { name: "乐高星球大战盲盒SR", probability: 0.1 }
                     ]
                 },
                 {
@@ -131,7 +150,6 @@ const HomePage = ({ onLogout }) => {
                     price: 79,
                     category: "万代",
                     series: "奥特曼系列",
-                    rarity: "SR",
                     likes: 203,
                     postTime: "12小时前",
                     user: {
@@ -145,6 +163,10 @@ const HomePage = ({ onLogout }) => {
                             content: "迪迦！我的童年偶像！",
                             time: "11小时前"
                         }
+                    ],
+                    items: [
+                        { name: "万代奥特曼系列SR", probability: 0.1 },
+                        { name: "万代奥特曼系列R", probability: 0.9 }
                     ]
                 },
                 {
@@ -155,7 +177,6 @@ const HomePage = ({ onLogout }) => {
                     price: 69,
                     category: "泡泡玛特",
                     series: "SKULLPANDA系列",
-                    rarity: "SSR",
                     likes: 89,
                     postTime: "1天前",
                     user: {
@@ -169,6 +190,10 @@ const HomePage = ({ onLogout }) => {
                             content: "这个设计真的很艺术！",
                             time: "23小时前"
                         }
+                    ],
+                    items: [
+                        { name: "泡泡玛特SKULLPANDA系列SSR", probability: 0.005 },
+                        { name: "泡泡玛特SKULLPANDA系列SR", probability: 0.095 }
                     ]
                 }
             ]);
@@ -177,38 +202,132 @@ const HomePage = ({ onLogout }) => {
         }
     };
 
+    // 获取所有类别
+    const categories = ['全部', ...new Set(blindBoxes.map(box => box.category))];
+
+    // 为后端数据添加默认用户信息
+    const processedBlindBoxes = blindBoxes.map(box => ({
+        ...box,
+        user: box.user || {
+            name: "盲盒爱好者",
+            avatar: "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=40&h=40&fit=crop&crop=face"
+        },
+        tags: box.tags || [],
+        comments: box.comments || []
+    }));
+
     // 筛选逻辑
-    const filteredBlindBoxes = blindBoxes.filter(box => {
+    const filteredBlindBoxes = processedBlindBoxes.filter(box => {
         const matchesSearch = box.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
             box.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            box.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()));
+            box.tags?.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()));
 
         const matchesCategory = selectedCategory === '全部' || box.category === selectedCategory;
-        const matchesRarity = selectedRarity === '全部' || box.rarity === selectedRarity;
 
-        return matchesSearch && matchesCategory && matchesRarity;
+        return matchesSearch && matchesCategory;
     });
 
-    // 获取所有类别和稀有度
-    const categories = ['全部', ...new Set(blindBoxes.map(box => box.category))];
-    const rarities = ['全部', 'SSR', 'SR', 'R'];
+    // 排序逻辑
+    const sortedBlindBoxes = [...filteredBlindBoxes].sort((a, b) => {
+        switch (selectedSort) {
+            case '最新发布':
+                return new Date(b.postTime || b.posttime || 0) - new Date(a.postTime || a.posttime || 0);
+            case '最多点赞':
+                return (b.likes || 0) - (a.likes || 0);
+            case '最多评论':
+                return (b.comments?.length || 0) - (a.comments?.length || 0);
+            case '价格从低到高':
+                return (a.price || 0) - (b.price || 0);
+            case '价格从高到低':
+                return (b.price || 0) - (a.price || 0);
+            default:
+                return 0;
+        }
+    });
 
     const handleBackToHome = () => {
         setCurrentPage('home');
+        setSelectedBlindBox(null);
     };
 
-    // 如果当前页面是购物车，显示购物车页面
-    if (currentPage === 'cart') {
-        return <CartPage onBack={handleBackToHome} />;
-    }
+    // 查看盲盒详情
+    const handleViewDetail = (blindBox) => {
+        setSelectedBlindBox(blindBox);
+        setCurrentPage('detail');
+    };
+
+    // 编辑盲盒
+    const handleEditBlindBox = (blindBox) => {
+        setSelectedBlindBox(blindBox);
+        setShowCreatePage(true);
+    };
+
+    // 删除盲盒
+    const handleDeleteBlindBox = async (id) => {
+        setNotification({
+            message: '确定要删除这个盲盒吗？',
+            type: 'confirm',
+            onConfirm: async () => {
+                try {
+                    await blindBoxAPI.deleteBlindBox(id);
+                    fetchBlindBoxes();
+                    setNotification({ message: '删除成功', type: 'success' });
+                } catch (e) {
+                    setNotification({ message: '删除失败', type: 'error' });
+                }
+            },
+            onCancel: () => setNotification(null)
+        });
+    };
+
+    // 跳转到管理页面
+    const handleGoToManage = () => {
+        setCurrentPage('manage');
+    };
 
     // 如果当前页面是用户空间，显示用户空间页面
     if (currentPage === 'userSpace') {
         return <UserSpace onBack={handleBackToHome} />;
     }
 
+    // 如果当前页面是详情页面，显示详情页面
+    if (currentPage === 'detail' && selectedBlindBox) {
+        return (
+            <BlindBoxDetailPage
+                blindBox={selectedBlindBox}
+                onBack={handleBackToHome}
+                onEdit={handleEditBlindBox}
+                onDelete={handleDeleteBlindBox}
+                currentUserId={user?.id}
+            />
+        );
+    }
+
+    // 如果当前页面是管理页面，显示管理页面
+    if (currentPage === 'manage') {
+        return (
+            <BlindBoxManagePage
+                onBack={handleBackToHome}
+                currentUserId={user?.id}
+            />
+        );
+    }
+
+    if (showCreatePage) {
+        return <BlindBoxCreatePage onBack={() => setShowCreatePage(false)} onSuccess={() => { setShowCreatePage(false); fetchBlindBoxes(); }} />;
+    }
+
     return (
         <div className="min-h-screen bg-gray-50">
+            {notification && (
+                <NotificationPage
+                    message={notification.message}
+                    type={notification.type}
+                    onClose={() => setNotification(null)}
+                    onConfirm={notification.onConfirm}
+                    onCancel={notification.onCancel}
+                />
+            )}
             {/* 顶部导航栏 */}
             <div className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-10">
                 <div className="container mx-auto px-4 py-4">
@@ -230,23 +349,27 @@ const HomePage = ({ onLogout }) => {
                         </div>
                         <div className="flex items-center space-x-4">
                             <button
-                                onClick={() => setCurrentPage('cart')}
-                                className="text-gray-600 hover:text-gray-900 relative"
-                            >
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                                </svg>
-                                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                                    2
-                                </span>
-                            </button>
-                            <button
                                 onClick={() => setCurrentPage('userSpace')}
                                 className="text-gray-600 hover:text-gray-900"
                             >
                                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                                 </svg>
+                            </button>
+                            <button
+                                onClick={handleGoToManage}
+                                className="text-gray-600 hover:text-gray-900"
+                                title="我的盲盒"
+                            >
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                                </svg>
+                            </button>
+                            <button
+                                onClick={() => setShowCreatePage(true)}
+                                className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition"
+                            >
+                                发布盲盒
                             </button>
                             <div className="flex items-center space-x-2">
                                 <div className="w-8 h-8 rounded-full bg-gray-300 overflow-hidden">
@@ -284,29 +407,19 @@ const HomePage = ({ onLogout }) => {
                             </select>
                         </div>
 
-                        {/* 稀有度筛选 */}
-                        <div className="flex items-center space-x-2">
-                            <span className="text-sm text-gray-600">稀有度</span>
-                            <select
-                                value={selectedRarity}
-                                onChange={(e) => setSelectedRarity(e.target.value)}
-                                className="px-3 py-1 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            >
-                                {rarities.map(rarity => (
-                                    <option key={rarity} value={rarity}>{rarity}</option>
-                                ))}
-                            </select>
-                        </div>
-
                         {/* 排序 */}
                         <div className="flex items-center space-x-2">
                             <span className="text-sm text-gray-600">排序</span>
-                            <select className="px-3 py-1 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                                <option>最新发布</option>
-                                <option>最多点赞</option>
-                                <option>最多评论</option>
-                                <option>价格从低到高</option>
-                                <option>价格从高到低</option>
+                            <select
+                                value={selectedSort}
+                                onChange={(e) => setSelectedSort(e.target.value)}
+                                className="px-3 py-1 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            >
+                                <option value="最新发布">最新发布</option>
+                                <option value="最多点赞">最多点赞</option>
+                                <option value="最多评论">最多评论</option>
+                                <option value="价格从低到高">价格从低到高</option>
+                                <option value="价格从高到低">价格从高到低</option>
                             </select>
                         </div>
                     </div>
@@ -318,7 +431,7 @@ const HomePage = ({ onLogout }) => {
                 {/* 统计信息 */}
                 <div className="mb-6">
                     <p className="text-gray-600">
-                        找到 <span className="font-semibold text-blue-600">{filteredBlindBoxes.length}</span> 个盲盒
+                        找到 <span className="font-semibold text-blue-600">{sortedBlindBoxes.length}</span> 个盲盒
                         {searchTerm && `，搜索关键词："${searchTerm}"`}
                     </p>
                 </div>
@@ -334,14 +447,21 @@ const HomePage = ({ onLogout }) => {
                 {/* 盲盒网格 */}
                 {!loading && (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                        {filteredBlindBoxes.map(blindBox => (
-                            <SquareForBx key={blindBox.id} blindBox={blindBox} />
+                        {sortedBlindBoxes.map(blindBox => (
+                            <SquareForBx
+                                key={blindBox.id}
+                                blindBox={blindBox}
+                                currentUserId={user?.id}
+                                onDelete={handleDeleteBlindBox}
+                                onViewDetail={handleViewDetail}
+                                onEdit={handleEditBlindBox}
+                            />
                         ))}
                     </div>
                 )}
 
                 {/* 加载更多 */}
-                {!loading && filteredBlindBoxes.length > 0 && (
+                {!loading && sortedBlindBoxes.length > 0 && (
                     <div className="text-center mt-8">
                         <button className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
                             加载更多
@@ -350,7 +470,7 @@ const HomePage = ({ onLogout }) => {
                 )}
 
                 {/* 空状态 */}
-                {!loading && filteredBlindBoxes.length === 0 && (
+                {!loading && sortedBlindBoxes.length === 0 && (
                     <div className="text-center py-12">
                         <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 12h6m-6-4h6m2 5.291A7.962 7.962 0 0112 15c-2.34 0-4.47-.881-6.08-2.33" />

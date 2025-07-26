@@ -1,11 +1,32 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import NotificationPage from './NotificationPage';
 
-const SquareForBx = ({ blindBox }) => {
+const SquareForBx = ({ blindBox, currentUserId, onDelete, onViewDetail, onEdit }) => {
     const [isLiked, setIsLiked] = useState(false);
     const [likeCount, setLikeCount] = useState(blindBox.likes || 0);
     const [showComments, setShowComments] = useState(false);
     const [showPurchaseModal, setShowPurchaseModal] = useState(false);
+    const [showOptionsMenu, setShowOptionsMenu] = useState(false);
     const [purchaseQuantity, setPurchaseQuantity] = useState(1);
+    const [notification, setNotification] = useState(null);
+    const menuRef = useRef(null);
+
+    // 点击外部关闭菜单
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (menuRef.current && !menuRef.current.contains(event.target)) {
+                setShowOptionsMenu(false);
+            }
+        };
+
+        if (showOptionsMenu) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [showOptionsMenu]);
 
     const handleLike = () => {
         if (isLiked) {
@@ -21,8 +42,10 @@ const SquareForBx = ({ blindBox }) => {
     };
 
     const handleConfirmPurchase = () => {
-        // 这里可以添加实际的购买逻辑
-        alert(`购买成功！\n商品：${blindBox.title}\n数量：${purchaseQuantity}\n总价：¥${blindBox.price * purchaseQuantity}`);
+        setNotification({
+            message: `购买成功！\n商品：${blindBox.title}\n数量：${purchaseQuantity}\n总价：¥${blindBox.price * purchaseQuantity}`,
+            type: 'success'
+        });
         setShowPurchaseModal(false);
         setPurchaseQuantity(1);
     };
@@ -34,6 +57,13 @@ const SquareForBx = ({ blindBox }) => {
 
     return (
         <>
+            {notification && (
+                <NotificationPage
+                    message={notification.message}
+                    type={notification.type}
+                    onClose={() => setNotification(null)}
+                />
+            )}
             <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
                 {/* 用户信息头部 */}
                 <div className="flex items-center p-4 border-b border-gray-100">
@@ -48,11 +78,63 @@ const SquareForBx = ({ blindBox }) => {
                         <div className="font-semibold text-gray-900 text-sm">{blindBox.user.name}</div>
                         <div className="text-gray-500 text-xs">{blindBox.postTime}</div>
                     </div>
-                    <button className="text-gray-400 hover:text-gray-600">
-                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-                        </svg>
-                    </button>
+                    <div className="relative" ref={menuRef}>
+                        <button
+                            className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100"
+                            onClick={() => setShowOptionsMenu(!showOptionsMenu)}
+                        >
+                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+                            </svg>
+                        </button>
+
+                        {/* 下拉菜单 */}
+                        {showOptionsMenu && (
+                            <div className="absolute right-0 top-8 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10 min-w-[120px]">
+                                <button
+                                    onClick={() => {
+                                        setShowOptionsMenu(false);
+                                        if (onViewDetail) onViewDetail(blindBox);
+                                    }}
+                                    className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+                                >
+                                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                    </svg>
+                                    查看详情
+                                </button>
+                                {currentUserId && blindBox.userId === currentUserId && (
+                                    <>
+                                        <button
+                                            onClick={() => {
+                                                setShowOptionsMenu(false);
+                                                if (onEdit) onEdit(blindBox);
+                                            }}
+                                            className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+                                        >
+                                            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                            </svg>
+                                            编辑
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                setShowOptionsMenu(false);
+                                                if (onDelete) onDelete(blindBox.id);
+                                            }}
+                                            className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center"
+                                        >
+                                            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                            </svg>
+                                            删除
+                                        </button>
+                                    </>
+                                )}
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 {/* 盲盒图片 */}
@@ -102,14 +184,14 @@ const SquareForBx = ({ blindBox }) => {
                             <span className="text-gray-600">盲盒系列</span>
                             <span className="font-medium">{blindBox.series}</span>
                         </div>
-                        <div className="flex justify-between items-center text-sm mt-1">
-                            <span className="text-gray-600">稀有度</span>
-                            <span className={`font-medium ${blindBox.rarity === 'SSR' ? 'text-purple-600' :
-                                    blindBox.rarity === 'SR' ? 'text-blue-600' :
-                                        blindBox.rarity === 'R' ? 'text-green-600' : 'text-gray-600'
-                                }`}>
-                                {blindBox.rarity}
-                            </span>
+                        {/* 展示 items 物品及概率 */}
+                        <div className="mt-2">
+                            <span className="text-gray-600 text-sm">包含物品：</span>
+                            <ul className="ml-2 list-disc text-sm">
+                                {blindBox.items && blindBox.items.map((item, idx) => (
+                                    <li key={idx}>{item.name}（概率：{item.probability}）</li>
+                                ))}
+                            </ul>
                         </div>
                     </div>
 
@@ -154,12 +236,15 @@ const SquareForBx = ({ blindBox }) => {
                                 <span className="text-sm">分享</span>
                             </button>
                         </div>
-
-                        <button className="text-gray-500 hover:text-gray-700 transition-colors">
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-                            </svg>
-                        </button>
+                        {/* 删除按钮，仅限本人 */}
+                        {currentUserId && blindBox.userId === currentUserId && (
+                            <button
+                                className="text-red-500 hover:text-red-700 transition-colors ml-2"
+                                onClick={() => onDelete && onDelete(blindBox.id)}
+                            >
+                                删除
+                            </button>
+                        )}
                     </div>
 
                     {/* 评论区域 */}
@@ -222,14 +307,14 @@ const SquareForBx = ({ blindBox }) => {
                                     <span className="text-gray-600">系列</span>
                                     <span className="font-medium">{blindBox.series}</span>
                                 </div>
-                                <div className="flex justify-between items-center text-sm">
-                                    <span className="text-gray-600">稀有度</span>
-                                    <span className={`font-medium ${blindBox.rarity === 'SSR' ? 'text-purple-600' :
-                                            blindBox.rarity === 'SR' ? 'text-blue-600' :
-                                                blindBox.rarity === 'R' ? 'text-green-600' : 'text-gray-600'
-                                        }`}>
-                                        {blindBox.rarity}
-                                    </span>
+                                {/* 展示 items 物品及概率 */}
+                                <div className="mt-2">
+                                    <span className="text-gray-600 text-sm">包含物品：</span>
+                                    <ul className="ml-2 list-disc text-sm">
+                                        {blindBox.items && blindBox.items.map((item, idx) => (
+                                            <li key={idx}>{item.name}（概率：{item.probability}）</li>
+                                        ))}
+                                    </ul>
                                 </div>
                             </div>
                         </div>

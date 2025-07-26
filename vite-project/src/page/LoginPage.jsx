@@ -1,5 +1,6 @@
 import React from "react";
 import { userAPI } from '../services/api';
+import NotificationPage from './NotificationPage';
 
 export class LoginPage extends React.Component {
     constructor(props) {
@@ -9,8 +10,13 @@ export class LoginPage extends React.Component {
             password: "",
             confirmPassword: "",
             isRegister: false,
+            notification: null,
         };
     }
+
+    showNotification = (message, type = 'info') => {
+        this.setState({ notification: { message, type } });
+    };
 
     handleInputChange = (e) => {
         const { name, value } = e.target;
@@ -27,21 +33,20 @@ export class LoginPage extends React.Component {
             });
 
             if (data.success) {
-                alert('登录成功！');
-                // 调用父组件的登录成功回调
+                this.showNotification('登录成功！', 'success');
                 if (this.props.onLogin) {
                     this.props.onLogin();
                 }
+                // 保存用户信息
+                localStorage.setItem('user', JSON.stringify(data.data));
+                // 跳转到个人主页
+                window.location.href = `/profile/${data.data.id}`;
             } else {
-                alert(data.message || '登录失败');
+                this.showNotification(data.message || '登录失败', 'error');
             }
         } catch (error) {
             console.error('登录失败:', error);
-            // 模拟登录成功（用于演示）
-            alert('登录成功！');
-            if (this.props.onLogin) {
-                this.props.onLogin();
-            }
+            this.showNotification(error.data?.message || '登录失败', 'error');
         }
     };
 
@@ -49,7 +54,7 @@ export class LoginPage extends React.Component {
         e.preventDefault();
         // 注册逻辑
         if (this.state.password !== this.state.confirmPassword) {
-            alert("两次输入的密码不一致");
+            this.showNotification("两次输入的密码不一致", 'warning');
             return;
         }
 
@@ -59,23 +64,20 @@ export class LoginPage extends React.Component {
                 password: this.state.password,
             });
 
-            console.log('注册响应数据:', data);
             if (data.success) {
-                alert('注册成功！');
-                // 注册成功后可以自动切换到登录模式
+                this.showNotification('注册成功！', 'success');
                 this.setState({
                     isRegister: false,
                     username: "",
                     password: "",
                     confirmPassword: "",
                 });
-                console.log('状态已更新，切换到登录模式');
             } else {
-                alert(data.message || '注册失败');
+                this.showNotification(data.message || '注册失败', 'error');
             }
         } catch (error) {
             console.error('注册失败:', error);
-            alert('网络错误，请稍后重试');
+            this.showNotification('网络错误，请稍后重试', 'error');
         }
     };
 
@@ -89,12 +91,30 @@ export class LoginPage extends React.Component {
     };
 
     render() {
-        const { isRegister, username, password, confirmPassword } = this.state;
+        const { isRegister, username, password, confirmPassword, notification } = this.state;
         return (
             <div className="max-w-lg mx-auto mt-20 p-12 border border-gray-200 rounded-2xl shadow-2xl bg-white">
+                {notification && (
+                    <NotificationPage
+                        message={notification.message}
+                        type={notification.type}
+                        onClose={() => this.setState({ notification: null })}
+                    />
+                )}
                 <h2 className="text-3xl font-bold mb-8 text-center text-blue-400">
                     欢迎来到poio盲盒
                 </h2>
+                {/* 注册要求提示 */}
+                {isRegister && (
+                    <div className="mb-6 p-4 bg-yellow-100 border-l-4 border-yellow-400 text-yellow-800 rounded">
+                        <div className="font-semibold mb-1">注册须知：</div>
+                        <ul className="list-disc pl-5 text-sm">
+                            <li>用户名长度需在 <b>3-20</b> 个字符之间</li>
+                            <li>密码长度需<strong>不少于6个字符</strong></li>
+                            <li>用户名不可重复</li>
+                        </ul>
+                    </div>
+                )}
                 <form onSubmit={isRegister ? this.handleRegister : this.handleLogin}>
                     <div className="mb-6">
                         <label className="block text-gray-700 mb-2">

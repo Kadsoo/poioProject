@@ -35,139 +35,143 @@ const request = async (endpoint, options = {}) => {
 
 // 盲盒相关API
 export const blindBoxAPI = {
-    // 获取盲盒列表
-    getBlindBoxes: async () => {
-        return request('/blindboxes');
-    },
+    // 获取全部盲盒
+    getAllBlindBoxes: () => request('/blindboxes'),
 
-    // 获取单个盲盒详情
-    getBlindBox: async (id) => {
-        return request(`/blindboxes/${id}`);
-    },
+    // 获取单个盲盒
+    getBlindBox: (id) => request(`/blindboxes/${id}`),
 
     // 创建盲盒
-    createBlindBox: async (data) => {
-        return request('/blindboxes', {
-            method: 'POST',
-            body: JSON.stringify(data),
-        });
-    },
+    createBlindBox: (data) => request('/blindboxes', {
+        method: 'POST',
+        body: JSON.stringify(data)
+    }),
 
     // 更新盲盒
-    updateBlindBox: async (id, data) => {
-        return request(`/blindboxes/${id}`, {
-            method: 'PUT',
-            body: JSON.stringify(data),
-        });
-    },
+    updateBlindBox: (id, data) => request(`/blindboxes/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data)
+    }),
 
     // 删除盲盒
-    deleteBlindBox: async (id) => {
-        return request(`/blindboxes/${id}`, {
-            method: 'DELETE',
-        });
-    },
+    deleteBlindBox: (id) => request(`/blindboxes/${id}`, {
+        method: 'DELETE'
+    }),
 
     // 点赞盲盒
-    likeBlindBox: async (id) => {
-        return request(`/blindboxes/${id}/like`, {
-            method: 'POST',
-        });
-    },
+    likeBlindBox: (id) => request(`/blindboxes/${id}/like`, {
+        method: 'POST'
+    }),
 
     // 取消点赞
-    unlikeBlindBox: async (id) => {
-        return request(`/blindboxes/${id}/unlike`, {
-            method: 'DELETE',
-        });
-    },
+    unlikeBlindBox: (id) => request(`/blindboxes/${id}/unlike`, {
+        method: 'DELETE'
+    }),
 
     // 添加评论
-    addComment: async (id, comment) => {
-        return request(`/blindboxes/${id}/comments`, {
-            method: 'POST',
-            body: JSON.stringify(comment),
+    addComment: (id, comment) => request(`/blindboxes/${id}/comments`, {
+        method: 'POST',
+        body: JSON.stringify(comment)
+    }),
+
+    // 获取评论
+    getComments: (id) => request(`/blindboxes/${id}/comments`),
+
+    // 搜索盲盒
+    searchBlindBoxes: (keyword) => request(`/blindboxes/search?q=${encodeURIComponent(keyword)}`),
+
+    // 获取用户的盲盒列表
+    getUserBlindBoxes: (userId) => request(`/blindboxes/user/${userId}`),
+
+    // 初始化示例数据
+    initData: () => request('/blindboxes/init', {
+        method: 'POST'
+    }),
+
+    // 文件上传
+    uploadImage: (file) => {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                try {
+                    // 提取 Base64 数据（去掉 data:image/...;base64, 前缀）
+                    const base64 = e.target.result.split(',')[1];
+
+                    const response = await fetch('/api/blindboxes/upload', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            image: base64,
+                            filename: file.name
+                        })
+                    });
+
+                    const result = await response.json();
+                    if (result.success) {
+                        resolve(result.url);
+                    } else {
+                        reject(new Error(result.message));
+                    }
+                } catch (error) {
+                    reject(error);
+                }
+            };
+            reader.readAsDataURL(file);
         });
-    },
-
-    // 获取评论列表
-    getComments: async (id) => {
-        return request(`/blindboxes/${id}/comments`);
-    },
-};
-
-// 用户相关API
-export const userAPI = {
-    // 用户登录
-    login: async (credentials) => {
-        return request('/user/login', {
-            method: 'POST',
-            body: JSON.stringify(credentials),
-        });
-    },
-
-    // 用户注册
-    register: async (userData) => {
-        return request('/user/register', {
-            method: 'POST',
-            body: JSON.stringify(userData),
-        });
-    },
-
-    // 获取用户信息
-    getUserProfile: async () => {
-        return request('/user/profile');
-    },
-
-    // 更新用户信息
-    updateUserProfile: async (userData) => {
-        return request('/user/profile', {
-            method: 'PUT',
-            body: JSON.stringify(userData),
-        });
-    },
-
-    // 更新用户头像
-    updateAvatar: async (avatarFile) => {
-        const formData = new FormData();
-        formData.append('avatar', avatarFile);
-
-        return request('/user/avatar', {
-            method: 'POST',
-            headers: {
-                // 不设置Content-Type，让浏览器自动设置multipart/form-data
-            },
-            body: formData,
-        });
-    },
+    }
 };
 
 // 订单相关API
 export const orderAPI = {
     // 获取用户订单列表
-    getUserOrders: async () => {
-        return request('/orders');
-    },
+    getUserOrders: (userId) => request(`/orders/user/${userId}`),
 
     // 创建订单
-    createOrder: async (orderData) => {
-        return request('/orders', {
-            method: 'POST',
-            body: JSON.stringify(orderData),
-        });
-    },
+    createOrder: (data) => request('/orders', {
+        method: 'POST',
+        body: JSON.stringify(data)
+    }),
 
     // 获取订单详情
-    getOrder: async (id) => {
-        return request(`/orders/${id}`);
-    },
+    getOrder: (id) => request(`/orders/${id}`),
 
-    // 取消订单
-    cancelOrder: async (id) => {
-        return request(`/orders/${id}/cancel`, {
-            method: 'PUT',
-        });
-    },
+    // 更新订单状态
+    updateOrderStatus: (id, status) => request(`/orders/${id}/status`, {
+        method: 'PUT',
+        body: JSON.stringify({ status })
+    }),
+
+    // 删除订单
+    deleteOrder: (id) => request(`/orders/${id}`, {
+        method: 'DELETE'
+    })
+};
+
+// 用户相关API
+export const userAPI = {
+    // 用户登录
+    login: (data) => request('/user/login', {
+        method: 'POST',
+        body: JSON.stringify(data)
+    }),
+
+    // 用户注册
+    register: (data) => request('/user/register', {
+        method: 'POST',
+        body: JSON.stringify(data)
+    }),
+
+    // 获取用户信息
+    getUserInfo: (userId) => request(`/user/${userId}`),
+
+    // 更新用户信息
+    updateUserInfo: (userId, data) => request(`/user/${userId}`, {
+        method: 'PUT',
+        body: JSON.stringify(data)
+    }),
+
+    // 获取用户统计数据
+    getUserStats: (userId) => request(`/user/${userId}/stats`)
 };
 
 // 收藏相关API

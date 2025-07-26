@@ -1,107 +1,103 @@
 import { Provide } from '@midwayjs/core';
-import { Repository } from 'typeorm';
-import { User } from '../entity';
 import { InjectEntityModel } from '@midwayjs/typeorm';
+import { Repository } from 'typeorm';
+import { User } from '../entity/user.entity';
+import { BlindBoxService } from './blindbox.service';
+import { OrderService } from './order.service';
 import * as bcrypt from 'bcrypt';
 
 @Provide()
 export class UserService {
-  @InjectEntityModel(User)
-  userModel: Repository<User>;
+  @InjectEntityModel(User) userModel: Repository<User>;
 
-  private async hashPassword(password: string): Promise<string> {
-    const saltRounds = 10;
-    return await bcrypt.hash(password, saltRounds);
-  }
+  constructor(
+    private blindBoxService: BlindBoxService,
+    private orderService: OrderService
+  ) { }
 
-  private async comparePassword(password: string, hashedPassword: string): Promise<boolean> {
-    return await bcrypt.compare(password, hashedPassword);
-  }
+  // 用户注册
+  async register(data: any) {
+    const { username, password, mail, phone } = data;
 
-  public async find(username: string, password: string): Promise<User | null> {
-    try {
-      const users = await this.userModel.find({ where: { username: username } });
-      if (users.length > 0) {
-        const user = users[0];
-        // 使用bcrypt验证密码
-        const isPasswordValid = await this.comparePassword(password, user.password);
-        if (isPasswordValid) {
-          return user;
-        }
-      }
-      return null; // 用户不存在或密码错误
-    } catch (error) {
-      console.error('查找用户失败:', error);
-      throw error;
+    // 检查用户名是否已存在
+    const existingUser = await this.userModel.findOne({ where: { username } });
+    if (existingUser) {
+      throw new Error('用户名已存在');
     }
+
+    // 加密密码
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // 创建新用户
+    const user = this.userModel.create({
+      username,
+      password: hashedPassword,
+      mail: mail || '',
+      phone: phone || ''
+    });
+
+    const savedUser = await this.userModel.save(user);
+
+    // 返回用户信息（不包含密码）
+    const { password: _, ...userInfo } = savedUser;
+    return userInfo;
   }
 
-  public async findByUsername(username: string): Promise<User | null> {
-    try {
-      const user = await this.userModel.findOne({ where: { username: username } });
-      return user;
-    } catch (error) {
-      console.error('根据用户名查找用户失败:', error);
-      throw error;
+  // 用户登录
+  async login(username: string, password: string) {
+    const user = await this.userModel.findOne({ where: { username } });
+    if (!user) {
+      throw new Error('用户名或密码错误');
     }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      throw new Error('用户名或密码错误');
+    }
+
+    // 返回用户信息（不包含密码）
+    const { password: _, ...userInfo } = user;
+    return userInfo;
   }
 
-  public async register(username: string, password: string, mail?: string, phone?: string): Promise<User> {
-    try {
-      // 检查用户名是否已存在
-      const existingUser = await this.userModel.findOne({ where: { username: username } });
-      if (existingUser) {
-        throw new Error('用户名已存在');
-      }
-
-      // 加密密码
-      const hashedPassword = await this.hashPassword(password);
-
-      // 创建新用户 - registerDate会自动设置
-      const newUser = this.userModel.create({
-        username: username,
-        password: hashedPassword,
-        mail: mail || '',
-        phone: phone || ''
-      });
-      const savedUser = await this.userModel.save(newUser);
-      return savedUser;
-    } catch (error) {
-      console.error('注册用户失败:', error);
-      throw error;
-    }
+  // 检查用户名是否可用
+  async checkUsername(username: string) {
+    const existingUser = await this.userModel.findOne({ where: { username } });
+    return !existingUser;
   }
 
-  public async getUserById(id: number): Promise<User | null> {
-    try {
-      const user = await this.userModel.findOne({ where: { id: id } });
-      return user;
-    } catch (error) {
-      console.error('获取用户信息失败:', error);
-      throw error;
-    }
+  // 获取用户信息
+  async getUserInfo(userId: number) {
+    return await this.userModel.findOne({ where: { id: userId } });
   }
 
-  public async updateUser(id: number, mail?: string, phone?: string): Promise<User> {
-    try {
-      const user = await this.userModel.findOne({ where: { id: id } });
-      if (!user) {
-        throw new Error('用户不存在');
-      }
-
-      // 更新用户信息
-      if (mail !== undefined) {
-        user.mail = mail;
-      }
-      if (phone !== undefined) {
-        user.phone = phone;
-      }
-
-      const updatedUser = await this.userModel.save(user);
-      return updatedUser;
-    } catch (error) {
-      console.error('更新用户信息失败:', error);
-      throw error;
+  // 更新用户信息
+  async updateUserInfo(userId: number, data: Partial<User>) {
+    const user = await this.userModel.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new Error('用户不存在');
     }
+
+    Object.assign(user, data);
+    return await this.userModel.save(user);
+  }
+
+  // 获取用户统计数据
+  async getUserStats(userId: number) {
+    const [blindBoxStats, orderStats] = await Promise.all([
+      this.blindBoxService.getBlindBoxStats(userId),
+      this.orderService.getUserOrderStats(userId)
+    ]);
+
+    return {
+      blindBoxStats,
+      orderStats,
+      totalStats: {
+        totalBlindBoxes: blindBoxStats.total,
+        totalOrders: orderStats.total,
+        totalLikes: blindBoxStats.totalLikes,
+        totalAmount: orderStats.totalAmount
+      }
+    };
   }
 }

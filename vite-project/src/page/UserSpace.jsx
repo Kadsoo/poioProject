@@ -1,59 +1,49 @@
 import React, { useState, useEffect } from 'react';
-import { userAPI } from '../services/api';
+import { userAPI, orderAPI } from '../services/api';
+import NotificationPage from './NotificationPage';
 
 const UserSpace = ({ onBack }) => {
-    const [userInfo, setUserInfo] = useState({
-        id: 1,
-        username: '盲盒爱好者',
-        nickname: '盲盒小达人',
-        avatar: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=100&h=100&fit=crop&crop=face',
-        email: 'user@example.com',
-        phone: '138****8888',
-        joinDate: '2024-01-01',
-        totalPurchases: 15,
-        totalFavorites: 8
-    });
-
-    const [isEditing, setIsEditing] = useState(false);
-    const [editForm, setEditForm] = useState({
-        nickname: userInfo.nickname,
-        password: '',
-        confirmPassword: '',
-        avatar: userInfo.avatar
-    });
-
-    const [avatarFile, setAvatarFile] = useState(null);
+    const [userInfo, setUserInfo] = useState(null);
+    const [userStats, setUserStats] = useState(null);
+    const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [notification, setNotification] = useState(null);
+    const [isEditing, setIsEditing] = useState(false);
+    const [editForm, setEditForm] = useState({});
+    const user = JSON.parse(localStorage.getItem('user'));
 
     useEffect(() => {
-        fetchUserInfo();
-    }, []);
+        if (user?.id) {
+            fetchUserData();
+        }
+    }, [user?.id]);
 
-    const fetchUserInfo = async () => {
+    const fetchUserData = async () => {
         try {
             setLoading(true);
-            // 使用API服务获取用户信息
-            const data = await userAPI.getUserProfile();
-            setUserInfo(data);
-            setEditForm(prev => ({
-                ...prev,
-                nickname: data.nickname,
-                avatar: data.avatar
-            }));
+            const [userInfoRes, userStatsRes, ordersRes] = await Promise.all([
+                userAPI.getUserInfo(user.id),
+                userAPI.getUserStats(user.id),
+                orderAPI.getUserOrders(user.id)
+            ]);
+
+            if (userInfoRes.success) {
+                setUserInfo(userInfoRes.data);
+                setEditForm({
+                    username: userInfoRes.data.username,
+                    mail: userInfoRes.data.mail || '',
+                    phone: userInfoRes.data.phone || ''
+                });
+            }
+            if (userStatsRes.success) {
+                setUserStats(userStatsRes.data);
+            }
+            if (ordersRes.success) {
+                setOrders(ordersRes.data);
+            }
         } catch (error) {
-            console.error('获取用户信息失败:', error);
-            // 使用模拟数据作为后备
-            setUserInfo({
-                id: 1,
-                username: '盲盒爱好者',
-                nickname: '盲盒小达人',
-                avatar: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=100&h=100&fit=crop&crop=face',
-                email: 'user@example.com',
-                phone: '138****8888',
-                joinDate: '2024-01-01',
-                totalPurchases: 15,
-                totalFavorites: 8
-            });
+            console.error('获取用户数据失败:', error);
+            setNotification({ message: '获取用户数据失败', type: 'error' });
         } finally {
             setLoading(false);
         }
@@ -67,77 +57,46 @@ const UserSpace = ({ onBack }) => {
         }));
     };
 
-    const handleAvatarChange = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            setAvatarFile(file);
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                setEditForm(prev => ({
-                    ...prev,
-                    avatar: e.target.result
-                }));
-            };
-            reader.readAsDataURL(file);
-        }
-    };
-
     const handleSave = async () => {
-        if (editForm.password !== editForm.confirmPassword) {
-            alert('两次输入的密码不一致');
-            return;
-        }
-
         try {
-            // 准备更新数据
-            const updateData = {
-                nickname: editForm.nickname
-            };
-
-            // 如果输入了新密码，添加到更新数据中
-            if (editForm.password) {
-                updateData.password = editForm.password;
-            }
-
-            // 使用API服务更新用户信息
-            await userAPI.updateUserProfile(updateData);
-
-            // 如果有新头像文件，上传头像
-            if (avatarFile) {
-                await userAPI.updateAvatar(avatarFile);
-            }
-
-            // 更新本地状态
-            setUserInfo(prev => ({
-                ...prev,
-                nickname: editForm.nickname,
-                avatar: editForm.avatar
-            }));
-
-            alert('保存成功！');
+            await userAPI.updateUserInfo(user.id, editForm);
+            setUserInfo(prev => ({ ...prev, ...editForm }));
             setIsEditing(false);
-            setEditForm({
-                nickname: editForm.nickname,
-                password: '',
-                confirmPassword: '',
-                avatar: editForm.avatar
-            });
-            setAvatarFile(null);
+            setNotification({ message: '保存成功', type: 'success' });
         } catch (error) {
-            console.error('保存失败:', error);
-            alert('保存失败，请重试');
+            setNotification({ message: '保存失败', type: 'error' });
         }
     };
 
     const handleCancel = () => {
         setIsEditing(false);
         setEditForm({
-            nickname: userInfo.nickname,
-            password: '',
-            confirmPassword: '',
-            avatar: userInfo.avatar
+            username: userInfo?.username || '',
+            mail: userInfo?.mail || '',
+            phone: userInfo?.phone || ''
         });
-        setAvatarFile(null);
+    };
+
+    const getStatusText = (status) => {
+        const statusMap = {
+            'pending': '待付款',
+            'paid': '已付款',
+            'shipped': '已发货',
+            'delivered': '已送达',
+            'cancelled': '已取消'
+        };
+        return statusMap[status] || status;
+    };
+
+    const getStatusColor = (status) => {
+        const colorMap = {
+            'pending': 'text-yellow-600 bg-yellow-100',
+            'paid': 'text-blue-600 bg-blue-100',
+            'shipped': 'text-purple-600 bg-purple-100',
+            'delivered': 'text-green-600 bg-green-100',
+            'cancelled': 'text-red-600 bg-red-100'
+        };
+        return colorMap[status] || 'text-gray-600 bg-gray-100';
     };
 
     if (loading) {
@@ -153,6 +112,14 @@ const UserSpace = ({ onBack }) => {
 
     return (
         <div className="min-h-screen bg-gray-50">
+            {notification && (
+                <NotificationPage
+                    message={notification.message}
+                    type={notification.type}
+                    onClose={() => setNotification(null)}
+                />
+            )}
+
             {/* 顶部导航栏 */}
             <div className="bg-white shadow-sm border-b border-gray-200">
                 <div className="container mx-auto px-4 py-4">
@@ -174,36 +141,23 @@ const UserSpace = ({ onBack }) => {
 
             {/* 主要内容区域 */}
             <div className="container mx-auto px-4 py-6">
-                <div className="max-w-2xl mx-auto">
+                <div className="max-w-4xl mx-auto">
                     {/* 个人信息卡片 */}
                     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
                         <div className="flex items-center space-x-6 mb-6">
                             <div className="relative">
                                 <img
-                                    src={isEditing ? editForm.avatar : userInfo.avatar}
+                                    src="https://images.unsplash.com/photo-1494790108755-2616b612b786?w=100&h=100&fit=crop&crop=face"
                                     alt="用户头像"
                                     className="w-24 h-24 rounded-full object-cover"
                                 />
-                                {isEditing && (
-                                    <label className="absolute bottom-0 right-0 bg-blue-500 text-white p-2 rounded-full cursor-pointer hover:bg-blue-600 transition-colors">
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                                        </svg>
-                                        <input
-                                            type="file"
-                                            accept="image/*"
-                                            onChange={handleAvatarChange}
-                                            className="hidden"
-                                        />
-                                    </label>
-                                )}
                             </div>
                             <div className="flex-1">
                                 <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                                    {isEditing ? editForm.nickname : userInfo.nickname}
+                                    {userInfo?.username || '用户'}
                                 </h2>
-                                <p className="text-gray-600">用户ID: {userInfo.id}</p>
-                                <p className="text-gray-600">加入时间: {userInfo.joinDate}</p>
+                                <p className="text-gray-600">用户ID: {userInfo?.id}</p>
+                                <p className="text-gray-600">注册时间: {userInfo?.registerDate}</p>
                             </div>
                             {!isEditing && (
                                 <button
@@ -216,16 +170,34 @@ const UserSpace = ({ onBack }) => {
                         </div>
 
                         {/* 统计信息 */}
-                        <div className="grid grid-cols-2 gap-4 mb-6">
-                            <div className="bg-blue-50 rounded-lg p-4 text-center">
-                                <div className="text-2xl font-bold text-blue-600">{userInfo.totalPurchases}</div>
-                                <div className="text-sm text-gray-600">购买次数</div>
+                        {userStats && (
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                                <div className="bg-blue-50 rounded-lg p-4 text-center">
+                                    <div className="text-2xl font-bold text-blue-600">
+                                        {userStats.totalStats?.totalBlindBoxes || 0}
+                                    </div>
+                                    <div className="text-sm text-gray-600">发布盲盒</div>
+                                </div>
+                                <div className="bg-green-50 rounded-lg p-4 text-center">
+                                    <div className="text-2xl font-bold text-green-600">
+                                        {userStats.totalStats?.totalOrders || 0}
+                                    </div>
+                                    <div className="text-sm text-gray-600">订单数量</div>
+                                </div>
+                                <div className="bg-purple-50 rounded-lg p-4 text-center">
+                                    <div className="text-2xl font-bold text-purple-600">
+                                        {userStats.totalStats?.totalLikes || 0}
+                                    </div>
+                                    <div className="text-sm text-gray-600">获得点赞</div>
+                                </div>
+                                <div className="bg-red-50 rounded-lg p-4 text-center">
+                                    <div className="text-2xl font-bold text-red-600">
+                                        ¥{userStats.totalStats?.totalAmount || 0}
+                                    </div>
+                                    <div className="text-sm text-gray-600">消费总额</div>
+                                </div>
                             </div>
-                            <div className="bg-purple-50 rounded-lg p-4 text-center">
-                                <div className="text-2xl font-bold text-purple-600">{userInfo.totalFavorites}</div>
-                                <div className="text-sm text-gray-600">收藏数量</div>
-                            </div>
-                        </div>
+                        )}
 
                         {/* 编辑表单 */}
                         {isEditing && (
@@ -233,41 +205,37 @@ const UserSpace = ({ onBack }) => {
                                 <div className="space-y-4">
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                                            昵称
+                                            用户名
                                         </label>
                                         <input
                                             type="text"
-                                            name="nickname"
-                                            value={editForm.nickname}
+                                            name="username"
+                                            value={editForm.username || ''}
                                             onChange={handleInputChange}
                                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                         />
                                     </div>
-
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                                            新密码
+                                            邮箱
                                         </label>
                                         <input
-                                            type="password"
-                                            name="password"
-                                            value={editForm.password}
+                                            type="email"
+                                            name="mail"
+                                            value={editForm.mail || ''}
                                             onChange={handleInputChange}
-                                            placeholder="留空表示不修改密码"
                                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                         />
                                     </div>
-
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                                            确认新密码
+                                            手机号
                                         </label>
                                         <input
-                                            type="password"
-                                            name="confirmPassword"
-                                            value={editForm.confirmPassword}
+                                            type="tel"
+                                            name="phone"
+                                            value={editForm.phone || ''}
                                             onChange={handleInputChange}
-                                            placeholder="再次输入新密码"
                                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                         />
                                     </div>
@@ -291,27 +259,54 @@ const UserSpace = ({ onBack }) => {
                         )}
                     </div>
 
-                    {/* 账户信息 */}
+                    {/* 订单列表 */}
                     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-4">账户信息</h3>
-                        <div className="space-y-3">
-                            <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                                <span className="text-gray-600">用户名</span>
-                                <span className="font-medium">{userInfo.username}</span>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-4">我的订单</h3>
+                        {orders.length > 0 ? (
+                            <div className="space-y-4">
+                                {orders.map(order => (
+                                    <div key={order.id} className="border border-gray-200 rounded-lg p-4">
+                                        <div className="flex justify-between items-start mb-3">
+                                            <div>
+                                                <h4 className="font-medium text-gray-900">订单 #{order.id}</h4>
+                                                <p className="text-sm text-gray-600">
+                                                    创建时间: {new Date(order.createTime).toLocaleString()}
+                                                </p>
+                                            </div>
+                                            <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(order.status)}`}>
+                                                {getStatusText(order.status)}
+                                            </span>
+                                        </div>
+                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                                            <div>
+                                                <span className="text-gray-600">盲盒ID:</span>
+                                                <span className="ml-2 font-medium">{order.blindBoxId}</span>
+                                            </div>
+                                            <div>
+                                                <span className="text-gray-600">数量:</span>
+                                                <span className="ml-2 font-medium">{order.quantity}</span>
+                                            </div>
+                                            <div>
+                                                <span className="text-gray-600">总价:</span>
+                                                <span className="ml-2 font-medium text-red-600">¥{order.totalPrice}</span>
+                                            </div>
+                                            <div>
+                                                <span className="text-gray-600">联系人:</span>
+                                                <span className="ml-2 font-medium">{order.contactName || '未填写'}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
-                            <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                                <span className="text-gray-600">邮箱</span>
-                                <span className="font-medium">{userInfo.email}</span>
+                        ) : (
+                            <div className="text-center py-8">
+                                <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                                </svg>
+                                <h3 className="mt-2 text-sm font-medium text-gray-900">暂无订单</h3>
+                                <p className="mt-1 text-sm text-gray-500">您还没有购买过盲盒</p>
                             </div>
-                            <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                                <span className="text-gray-600">手机号</span>
-                                <span className="font-medium">{userInfo.phone}</span>
-                            </div>
-                            <div className="flex justify-between items-center py-2">
-                                <span className="text-gray-600">注册时间</span>
-                                <span className="font-medium">{userInfo.joinDate}</span>
-                            </div>
-                        </div>
+                        )}
                     </div>
                 </div>
             </div>

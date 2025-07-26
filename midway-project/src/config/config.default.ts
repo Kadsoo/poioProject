@@ -1,9 +1,11 @@
 import { MidwayConfig } from '@midwayjs/core';
 import { User } from '../entity/user.entity';
+import { BlindBox } from '../entity/blindbox.entity';
+import { Order } from '../entity/order.entity';
 
 export default {
   // use for cookie sign key, should change to your own and keep security
-  keys: '1751442019100_3929',
+  keys: '1701234567890_1234',
   koa: {
     port: 7001,
   },
@@ -14,8 +16,8 @@ export default {
         database: 'webapp.sqlite',
         synchronize: true,
         logging: true,
-        entities: [User]
+        entities: [User, BlindBox, Order]
       }
     }
-  },
+  }
 } as MidwayConfig;
