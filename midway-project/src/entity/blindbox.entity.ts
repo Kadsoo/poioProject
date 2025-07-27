@@ -43,6 +43,10 @@ export class BlindBox {
     @Column({ default: 0 })
     likes: number;
 
+    // 点赞用户列表
+    @Column('simple-json', { nullable: true })
+    likedUsers: number[];
+
     // 发布时间
     @CreateDateColumn()
     posttime: Date;

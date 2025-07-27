@@ -4,6 +4,7 @@ import UserSpace from './UserSpace';
 import BlindBoxCreatePage from './BlindBoxCreatePage';
 import BlindBoxDetailPage from './BlindBoxDetailPage';
 import BlindBoxManagePage from './BlindBoxManagePage';
+import PlayerShowPage from './PlayerShowPage';
 import NotificationPage from './NotificationPage';
 import { blindBoxAPI } from '../services/api';
 
@@ -11,192 +12,100 @@ const HomePage = ({ onLogout }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('全部');
     const [selectedSort, setSelectedSort] = useState('最新发布');
-    const [currentPage, setCurrentPage] = useState('home'); // 'home', 'cart', 'userSpace', 'detail', 'manage'
+    const [currentPage, setCurrentPage] = useState('home'); // 'home', 'cart', 'userSpace', 'detail', 'manage', 'playershow'
     const [blindBoxes, setBlindBoxes] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
     const [showCreatePage, setShowCreatePage] = useState(false);
     const [selectedBlindBox, setSelectedBlindBox] = useState(null);
     const user = JSON.parse(localStorage.getItem('user'));
     const [notification, setNotification] = useState(null);
+
+    // 分页状态
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
+    const [total, setTotal] = useState(0);
 
     // 从后端获取盲盒数据
     useEffect(() => {
         fetchBlindBoxes();
     }, []);
 
-    const fetchBlindBoxes = async () => {
+    const fetchBlindBoxes = async (pageNum = 1, append = false) => {
         try {
-            setLoading(true);
+            if (pageNum === 1) {
+                setLoading(true);
+            } else {
+                setLoadingMore(true);
+            }
+
             // 使用API服务获取盲盒数据
-            const data = await blindBoxAPI.getBlindBoxes();
-            setBlindBoxes(data);
+            const response = await blindBoxAPI.getBlindBoxes(pageNum);
+
+            if (response.success) {
+                const { data, pagination } = response;
+
+                if (append) {
+                    // 追加数据
+                    setBlindBoxes(prev => [...prev, ...data]);
+                } else {
+                    // 替换数据
+                    setBlindBoxes(data);
+                }
+
+                setPage(pagination.page);
+                setHasMore(pagination.hasMore);
+                setTotal(pagination.total);
+            } else {
+                console.error('获取盲盒数据失败:', response.message);
+                setNotification({
+                    type: 'error',
+                    message: '获取盲盒数据失败: ' + response.message
+                });
+            }
         } catch (error) {
             console.error('获取盲盒数据失败:', error);
-            // 使用模拟数据作为后备
-            setBlindBoxes([
-                {
-                    id: 1,
-                    title: "超可爱的泡泡玛特盲盒开箱！SSR隐藏款到手了！",
-                    description: "今天终于抽到了心心念念的泡泡玛特系列隐藏款！这个系列的做工真的太精致了，每一个细节都完美还原。开箱的那一刻真的超级激动，没想到真的抽到了SSR！",
-                    image: "https://images.unsplash.com/photo-1606107557195-0e29a4b5b4aa?w=500&h=400&fit=crop",
-                    price: 59,
-                    category: "泡泡玛特",
-                    series: "POP MART 系列",
-                    likes: 128,
-                    postTime: "2小时前",
-                    user: {
-                        name: "盲盒小达人",
-                        avatar: "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=40&h=40&fit=crop&crop=face"
-                    },
-                    tags: ["泡泡玛特", "盲盒", "开箱", "SSR", "收藏"],
-                    comments: [
-                        {
-                            user: { name: "盲盒爱好者", avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=24&h=24&fit=crop&crop=face" },
-                            content: "太幸运了！我也想要这个隐藏款",
-                            time: "1小时前"
-                        }
-                    ],
-                    items: [
-                        { name: "泡泡玛特系列隐藏款", probability: 0.001 },
-                        { name: "POP MART 系列普通款", probability: 0.999 }
-                    ]
-                },
-                {
-                    id: 2,
-                    title: "52TOYS猛兽匣系列开箱，这个做工绝了！",
-                    description: "52TOYS的猛兽匣系列真的是国货之光！每一个细节都处理得非常好，关节可动性也很棒。这次抽到了SR级别的，虽然不是SSR但也很满意了！",
-                    image: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=500&h=400&fit=crop",
-                    price: 89,
-                    category: "52TOYS",
-                    series: "猛兽匣系列",
-                    likes: 95,
-                    postTime: "4小时前",
-                    user: {
-                        name: "玩具收藏家",
-                        avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=40&h=40&fit=crop&crop=face"
-                    },
-                    tags: ["52TOYS", "猛兽匣", "国货", "SR", "可动"],
-                    comments: [
-                        {
-                            user: { name: "国货支持者", avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=24&h=24&fit=crop&crop=face" },
-                            content: "52TOYS确实不错，支持国货！",
-                            time: "3小时前"
-                        }
-                    ],
-                    items: [
-                        { name: "52TOYS猛兽匣系列SR", probability: 0.01 },
-                        { name: "52TOYS猛兽匣系列R", probability: 0.99 }
-                    ]
-                },
-                {
-                    id: 3,
-                    title: "万代高达模型盲盒，拼装体验超棒！",
-                    description: "万代的高达模型盲盒系列，虽然是R级别但拼装体验真的很棒！细节刻画很到位，适合新手入门。推荐给喜欢拼装的朋友们！",
-                    image: "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=500&h=400&fit=crop",
-                    price: 129,
-                    category: "万代",
-                    series: "高达模型系列",
-                    likes: 67,
-                    postTime: "6小时前",
-                    user: {
-                        name: "模型达人",
-                        avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=40&h=40&fit=crop&crop=face"
-                    },
-                    tags: ["万代", "高达", "模型", "拼装", "R级"],
-                    comments: [
-                        {
-                            user: { name: "拼装新手", avatar: "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=24&h=24&fit=crop&crop=face" },
-                            content: "新手适合吗？想入坑",
-                            time: "5小时前"
-                        }
-                    ],
-                    items: [
-                        { name: "万代高达模型盲盒R", probability: 0.9 },
-                        { name: "万代高达模型盲盒SR", probability: 0.1 }
-                    ]
-                },
-                {
-                    id: 4,
-                    title: "乐高星球大战盲盒，收藏价值超高！",
-                    description: "乐高的星球大战系列盲盒，这次抽到了千年隼号！虽然是R级别但收藏价值很高，细节还原度也很棒。乐高粉必入！",
-                    image: "https://images.unsplash.com/photo-1544966503-7cc5ac882d5f?w=500&h=400&fit=crop",
-                    price: 199,
-                    category: "乐高",
-                    series: "星球大战系列",
-                    likes: 156,
-                    postTime: "8小时前",
-                    user: {
-                        name: "乐高收藏家",
-                        avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=40&h=40&fit=crop&crop=face"
-                    },
-                    tags: ["乐高", "星球大战", "千年隼", "收藏", "R级"],
-                    comments: [
-                        {
-                            user: { name: "星战迷", avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=24&h=24&fit=crop&crop=face" },
-                            content: "千年隼号太经典了！",
-                            time: "7小时前"
-                        }
-                    ],
-                    items: [
-                        { name: "乐高星球大战盲盒R", probability: 0.9 },
-                        { name: "乐高星球大战盲盒SR", probability: 0.1 }
-                    ]
-                },
-                {
-                    id: 5,
-                    title: "万代奥特曼系列，童年回忆杀！",
-                    description: "万代的奥特曼系列盲盒，这次抽到了迪迦奥特曼！做工很精致，关节可动性也不错。满满的童年回忆，奥特曼粉必收！",
-                    image: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=500&h=400&fit=crop",
-                    price: 79,
-                    category: "万代",
-                    series: "奥特曼系列",
-                    likes: 203,
-                    postTime: "12小时前",
-                    user: {
-                        name: "奥特曼迷",
-                        avatar: "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=40&h=40&fit=crop&crop=face"
-                    },
-                    tags: ["万代", "奥特曼", "迪迦", "童年", "SR"],
-                    comments: [
-                        {
-                            user: { name: "光之巨人", avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=24&h=24&fit=crop&crop=face" },
-                            content: "迪迦！我的童年偶像！",
-                            time: "11小时前"
-                        }
-                    ],
-                    items: [
-                        { name: "万代奥特曼系列SR", probability: 0.1 },
-                        { name: "万代奥特曼系列R", probability: 0.9 }
-                    ]
-                },
-                {
-                    id: 6,
-                    title: "泡泡玛特SKULLPANDA系列，艺术感十足！",
-                    description: "泡泡玛特的SKULLPANDA系列，这次抽到了艺术家款！设计很有艺术感，配色也很高级。这个系列真的很适合收藏！",
-                    image: "https://images.unsplash.com/photo-1606107557195-0e29a4b5b4aa?w=500&h=400&fit=crop",
-                    price: 69,
-                    category: "泡泡玛特",
-                    series: "SKULLPANDA系列",
-                    likes: 89,
-                    postTime: "1天前",
-                    user: {
-                        name: "艺术收藏家",
-                        avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=40&h=40&fit=crop&crop=face"
-                    },
-                    tags: ["泡泡玛特", "SKULLPANDA", "艺术", "SSR", "收藏"],
-                    comments: [
-                        {
-                            user: { name: "艺术爱好者", avatar: "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=24&h=24&fit=crop&crop=face" },
-                            content: "这个设计真的很艺术！",
-                            time: "23小时前"
-                        }
-                    ],
-                    items: [
-                        { name: "泡泡玛特SKULLPANDA系列SSR", probability: 0.005 },
-                        { name: "泡泡玛特SKULLPANDA系列SR", probability: 0.095 }
-                    ]
-                }
-            ]);
+            setNotification({
+                type: 'error',
+                message: '网络错误，无法获取盲盒数据'
+            });
+        } finally {
+            setLoading(false);
+            setLoadingMore(false);
+        }
+    };
+
+    // 加载更多盲盒
+    const handleLoadMore = async () => {
+        if (hasMore && !loadingMore) {
+            await fetchBlindBoxes(page + 1, true);
+        }
+    };
+
+    // 初始化示例数据
+    const initSampleData = async () => {
+        try {
+            setLoading(true);
+            const response = await blindBoxAPI.initData();
+            if (response.success) {
+                setNotification({
+                    type: 'success',
+                    message: response.message
+                });
+                // 重新获取数据
+                await fetchBlindBoxes(1, false);
+            } else {
+                setNotification({
+                    type: 'error',
+                    message: '初始化数据失败: ' + response.message
+                });
+            }
+        } catch (error) {
+            console.error('初始化数据失败:', error);
+            setNotification({
+                type: 'error',
+                message: '初始化数据失败'
+            });
         } finally {
             setLoading(false);
         }
@@ -205,15 +114,15 @@ const HomePage = ({ onLogout }) => {
     // 获取所有类别
     const categories = ['全部', ...new Set(blindBoxes.map(box => box.category))];
 
-    // 为后端数据添加默认用户信息
-    const processedBlindBoxes = blindBoxes.map(box => ({
-        ...box,
-        user: box.user || {
-            name: "盲盒爱好者",
+    // 处理盲盒数据，确保包含用户信息
+    const processedBlindBoxes = blindBoxes.map(blindBox => ({
+        ...blindBox,
+        user: blindBox.user || {
+            name: "未知用户",
             avatar: "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=40&h=40&fit=crop&crop=face"
         },
-        tags: box.tags || [],
-        comments: box.comments || []
+        tags: blindBox.tags || [],
+        comments: blindBox.comments || []
     }));
 
     // 筛选逻辑
@@ -290,7 +199,12 @@ const HomePage = ({ onLogout }) => {
         return <UserSpace onBack={handleBackToHome} />;
     }
 
-    // 如果当前页面是详情页面，显示详情页面
+    // 玩家秀页面
+    if (currentPage === 'playershow') {
+        return <PlayerShowPage onBack={() => setCurrentPage('home')} />;
+    }
+
+    // 盲盒详情页面
     if (currentPage === 'detail' && selectedBlindBox) {
         return (
             <BlindBoxDetailPage
@@ -347,41 +261,38 @@ const HomePage = ({ onLogout }) => {
                                 </svg>
                             </div>
                         </div>
+                        {/* 导航按钮 */}
                         <div className="flex items-center space-x-4">
                             <button
+                                onClick={() => setCurrentPage('home')}
+                                className="px-4 py-2 text-gray-600 hover:text-gray-900 transition-colors"
+                            >
+                                首页
+                            </button>
+                            <button
+                                onClick={() => setCurrentPage('playershow')}
+                                className="px-4 py-2 text-gray-600 hover:text-gray-900 transition-colors"
+                            >
+                                玩家秀
+                            </button>
+                            <button
+                                onClick={() => setCurrentPage('manage')}
+                                className="px-4 py-2 text-gray-600 hover:text-gray-900 transition-colors"
+                            >
+                                我的盲盒
+                            </button>
+                            <button
                                 onClick={() => setCurrentPage('userSpace')}
-                                className="text-gray-600 hover:text-gray-900"
+                                className="px-4 py-2 text-gray-600 hover:text-gray-900 transition-colors"
                             >
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                                </svg>
+                                个人空间
                             </button>
                             <button
-                                onClick={handleGoToManage}
-                                className="text-gray-600 hover:text-gray-900"
-                                title="我的盲盒"
+                                onClick={onLogout}
+                                className="px-4 py-2 text-gray-600 hover:text-gray-900 transition-colors"
                             >
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                                </svg>
+                                退出登录
                             </button>
-                            <button
-                                onClick={() => setShowCreatePage(true)}
-                                className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition"
-                            >
-                                发布盲盒
-                            </button>
-                            <div className="flex items-center space-x-2">
-                                <div className="w-8 h-8 rounded-full bg-gray-300 overflow-hidden">
-                                    <img src="https://images.unsplash.com/photo-1494790108755-2616b612b786?w=32&h=32&fit=crop&crop=face" alt="用户头像" className="w-full h-full object-cover" />
-                                </div>
-                                <button
-                                    onClick={onLogout}
-                                    className="text-gray-600 hover:text-red-600 transition-colors text-sm"
-                                >
-                                    退出登录
-                                </button>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -431,7 +342,7 @@ const HomePage = ({ onLogout }) => {
                 {/* 统计信息 */}
                 <div className="mb-6">
                     <p className="text-gray-600">
-                        找到 <span className="font-semibold text-blue-600">{sortedBlindBoxes.length}</span> 个盲盒
+                        找到 <span className="font-semibold text-blue-600">{total}</span> 个盲盒
                         {searchTerm && `，搜索关键词："${searchTerm}"`}
                     </p>
                 </div>
@@ -461,10 +372,21 @@ const HomePage = ({ onLogout }) => {
                 )}
 
                 {/* 加载更多 */}
-                {!loading && sortedBlindBoxes.length > 0 && (
+                {!loading && sortedBlindBoxes.length > 0 && hasMore && (
                     <div className="text-center mt-8">
-                        <button className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
-                            加载更多
+                        <button
+                            onClick={handleLoadMore}
+                            disabled={loadingMore}
+                            className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                        >
+                            {loadingMore ? (
+                                <>
+                                    <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                    加载中...
+                                </>
+                            ) : (
+                                `加载更多 (${sortedBlindBoxes.length}/${total})`
+                            )}
                         </button>
                     </div>
                 )}
@@ -476,7 +398,13 @@ const HomePage = ({ onLogout }) => {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 12h6m-6-4h6m2 5.291A7.962 7.962 0 0112 15c-2.34 0-4.47-.881-6.08-2.33" />
                         </svg>
                         <h3 className="mt-2 text-sm font-medium text-gray-900">没有找到相关盲盒</h3>
-                        <p className="mt-1 text-sm text-gray-500">尝试调整搜索条件或筛选器</p>
+                        <p className="mt-1 text-sm text-gray-500">尝试调整搜索条件或初始化示例数据</p>
+                        <button
+                            onClick={initSampleData}
+                            className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                        >
+                            初始化示例数据
+                        </button>
                     </div>
                 )}
             </div>

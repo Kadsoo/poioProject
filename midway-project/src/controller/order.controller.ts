@@ -3,7 +3,36 @@ import { OrderService } from '../service/order.service';
 
 @Controller('/api/orders')
 export class OrderController {
-    @Inject() orderService: OrderService;
+    @Inject()
+    orderService: OrderService;
+
+    // 购买盲盒
+    @Post('/purchase')
+    async purchaseBlindBox(@Body() data: any) {
+        try {
+            const { userId, blindBoxId, quantity = 1, shippingInfo } = data;
+
+            if (!userId || !blindBoxId) {
+                return { success: false, message: '用户ID和盲盒ID不能为空' };
+            }
+
+            const result = await this.orderService.createOrder(userId, blindBoxId, quantity, shippingInfo);
+            return result;
+        } catch (error) {
+            return { success: false, message: error.message };
+        }
+    }
+
+    // 获取用户订单统计
+    @Get('/user/:userId/stats')
+    async getUserOrderStats(@Param('userId') userId: number) {
+        try {
+            const stats = await this.orderService.getUserOrderStats(userId);
+            return { success: true, data: stats };
+        } catch (error) {
+            return { success: false, message: error.message };
+        }
+    }
 
     // 获取用户订单列表
     @Get('/user/:userId')
@@ -16,11 +45,12 @@ export class OrderController {
         }
     }
 
-    // 创建订单
-    @Post('/')
-    async createOrder(@Body() data: any) {
+    // 更新订单状态
+    @Put('/:id/status')
+    async updateOrderStatus(@Param('id') id: number, @Body() data: any) {
         try {
-            const order = await this.orderService.createOrder(data);
+            const { status } = data;
+            const order = await this.orderService.updateOrderStatus(id, status);
             return { success: true, data: order };
         } catch (error) {
             return { success: false, message: error.message };
@@ -41,34 +71,12 @@ export class OrderController {
         }
     }
 
-    // 更新订单状态
-    @Put('/:id/status')
-    async updateOrderStatus(@Param('id') id: number, @Body() data: any) {
-        try {
-            const order = await this.orderService.updateOrderStatus(id, data.status, data);
-            return { success: true, data: order };
-        } catch (error) {
-            return { success: false, message: error.message };
-        }
-    }
-
     // 删除订单
     @Del('/:id')
     async deleteOrder(@Param('id') id: number) {
         try {
             await this.orderService.deleteOrder(id);
             return { success: true, message: '订单删除成功' };
-        } catch (error) {
-            return { success: false, message: error.message };
-        }
-    }
-
-    // 获取用户订单统计
-    @Get('/user/:userId/stats')
-    async getUserOrderStats(@Param('userId') userId: number) {
-        try {
-            const stats = await this.orderService.getUserOrderStats(userId);
-            return { success: true, data: stats };
         } catch (error) {
             return { success: false, message: error.message };
         }

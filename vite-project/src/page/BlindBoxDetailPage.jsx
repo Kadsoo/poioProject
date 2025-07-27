@@ -1,24 +1,70 @@
 import React, { useState } from 'react';
+import { blindBoxAPI } from '../services/api';
 import NotificationPage from './NotificationPage';
 
 const BlindBoxDetailPage = ({ blindBox, onBack, onEdit, onDelete, currentUserId }) => {
     const [showComments, setShowComments] = useState(false);
     const [newComment, setNewComment] = useState('');
     const [notification, setNotification] = useState(null);
+    const [isLiked, setIsLiked] = useState(blindBox.likedUsers?.includes(currentUserId) || false);
+    const [likeCount, setLikeCount] = useState(blindBox.likes || 0);
+    const [currentBlindBox, setCurrentBlindBox] = useState(blindBox);
 
-    const handleAddComment = () => {
+    const handleAddComment = async () => {
         if (!newComment.trim()) {
             setNotification({ message: '请输入评论内容', type: 'warning' });
             return;
         }
-        // 这里可以调用API添加评论
-        setNotification({ message: '评论添加成功', type: 'success' });
-        setNewComment('');
+
+        if (!currentUserId) {
+            setNotification({ message: '请先登录', type: 'error' });
+            return;
+        }
+
+        try {
+            const response = await blindBoxAPI.addComment(currentBlindBox.id, {
+                userId: currentUserId,
+                content: newComment.trim()
+            });
+
+            if (response.success) {
+                setNotification({ message: '评论添加成功', type: 'success' });
+                setNewComment('');
+                // 更新当前盲盒数据以显示新评论
+                setCurrentBlindBox(response.data);
+            } else {
+                setNotification({ message: response.message || '评论添加失败', type: 'error' });
+            }
+        } catch (error) {
+            setNotification({ message: '评论添加失败', type: 'error' });
+        }
     };
 
-    const handleLike = () => {
-        // 这里可以调用API进行点赞
-        setNotification({ message: '点赞成功', type: 'success' });
+    const handleLike = async () => {
+        if (!currentUserId) {
+            setNotification({ message: '请先登录', type: 'error' });
+            return;
+        }
+
+        try {
+            const response = isLiked
+                ? await blindBoxAPI.unlikeBlindBox(currentBlindBox.id, currentUserId)
+                : await blindBoxAPI.likeBlindBox(currentBlindBox.id, currentUserId);
+
+            if (response.success) {
+                setIsLiked(!isLiked);
+                setLikeCount(response.data.likes);
+                setCurrentBlindBox(response.data);
+                setNotification({
+                    message: isLiked ? '取消点赞成功' : '点赞成功',
+                    type: 'success'
+                });
+            } else {
+                setNotification({ message: response.message, type: 'error' });
+            }
+        } catch (error) {
+            setNotification({ message: '操作失败', type: 'error' });
+        }
     };
 
     const handleShare = () => {
@@ -53,16 +99,16 @@ const BlindBoxDetailPage = ({ blindBox, onBack, onEdit, onDelete, currentUserId 
                             <h1 className="text-xl font-bold text-gray-900">盲盒详情</h1>
                         </div>
                         <div className="flex items-center space-x-2">
-                            {currentUserId && blindBox.userId === currentUserId && (
+                            {currentUserId && currentBlindBox.userId === currentUserId && (
                                 <>
                                     <button
-                                        onClick={() => onEdit && onEdit(blindBox)}
+                                        onClick={() => onEdit && onEdit(currentBlindBox)}
                                         className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
                                     >
                                         编辑
                                     </button>
                                     <button
-                                        onClick={() => onDelete && onDelete(blindBox.id)}
+                                        onClick={() => onDelete && onDelete(currentBlindBox.id)}
                                         className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition"
                                     >
                                         删除
@@ -80,15 +126,15 @@ const BlindBoxDetailPage = ({ blindBox, onBack, onEdit, onDelete, currentUserId 
                     <div className="bg-white rounded-lg shadow-md overflow-hidden mb-6">
                         <div className="relative">
                             <img
-                                src={blindBox.image}
-                                alt={blindBox.title}
+                                src={currentBlindBox.image}
+                                alt={currentBlindBox.title}
                                 className="w-full h-96 object-cover"
                             />
                             <div className="absolute top-4 left-4 bg-red-500 text-white px-3 py-1 rounded-full text-sm font-medium">
-                                {blindBox.category}
+                                {currentBlindBox.category}
                             </div>
                             <div className="absolute top-4 right-4 bg-black bg-opacity-70 text-white px-3 py-1 rounded text-sm">
-                                ¥{blindBox.price}
+                                ¥{currentBlindBox.price}
                             </div>
                         </div>
                     </div>
@@ -100,23 +146,27 @@ const BlindBoxDetailPage = ({ blindBox, onBack, onEdit, onDelete, currentUserId 
                                 {/* 用户信息 */}
                                 <div className="flex items-center mb-4">
                                     <img
-                                        src={blindBox.user.avatar || 'https://via.placeholder.com/48x48'}
-                                        alt={blindBox.user.name}
+                                        src={currentBlindBox.user?.avatar || 'https://via.placeholder.com/48x48'}
+                                        alt={currentBlindBox.user?.name || '用户'}
                                         className="w-12 h-12 rounded-full mr-3"
                                     />
                                     <div>
-                                        <div className="font-semibold text-gray-900">{blindBox.user.name}</div>
-                                        <div className="text-gray-500 text-sm">{blindBox.postTime}</div>
+                                        <div className="font-semibold text-gray-900">
+                                            {currentBlindBox.user?.name || `用户${currentBlindBox.userId}`}
+                                        </div>
+                                        <div className="text-gray-500 text-sm">
+                                            {currentBlindBox.postTime ? new Date(currentBlindBox.postTime).toLocaleString() : '未知时间'}
+                                        </div>
                                     </div>
                                 </div>
 
                                 {/* 标题和描述 */}
-                                <h1 className="text-2xl font-bold text-gray-900 mb-4">{blindBox.title}</h1>
-                                <p className="text-gray-600 text-lg leading-relaxed mb-6">{blindBox.description}</p>
+                                <h1 className="text-2xl font-bold text-gray-900 mb-4">{currentBlindBox.title}</h1>
+                                <p className="text-gray-600 text-lg leading-relaxed mb-6">{currentBlindBox.description}</p>
 
                                 {/* 标签 */}
                                 <div className="flex flex-wrap gap-2 mb-6">
-                                    {blindBox.tags?.map((tag, index) => (
+                                    {currentBlindBox.tags?.map((tag, index) => (
                                         <span
                                             key={index}
                                             className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm"
@@ -130,12 +180,15 @@ const BlindBoxDetailPage = ({ blindBox, onBack, onEdit, onDelete, currentUserId 
                                 <div className="flex items-center space-x-6 pt-4 border-t border-gray-200">
                                     <button
                                         onClick={handleLike}
-                                        className="flex items-center space-x-2 text-gray-600 hover:text-red-500 transition-colors"
+                                        className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${isLiked
+                                            ? 'bg-red-100 text-red-600'
+                                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                            }`}
                                     >
-                                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <svg className="w-5 h-5" fill={isLiked ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                                         </svg>
-                                        <span>{blindBox.likes || 0}</span>
+                                        <span>{likeCount}</span>
                                     </button>
                                     <button
                                         onClick={() => setShowComments(!showComments)}
@@ -144,7 +197,7 @@ const BlindBoxDetailPage = ({ blindBox, onBack, onEdit, onDelete, currentUserId 
                                         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                                         </svg>
-                                        <span>{blindBox.comments?.length || 0}</span>
+                                        <span>{currentBlindBox.comments?.length || 0}</span>
                                     </button>
                                     <button
                                         onClick={handleShare}
@@ -184,19 +237,21 @@ const BlindBoxDetailPage = ({ blindBox, onBack, onEdit, onDelete, currentUserId 
 
                                     {/* 评论列表 */}
                                     <div className="space-y-4">
-                                        {blindBox.comments?.map((comment, index) => (
+                                        {currentBlindBox.comments?.map((comment, index) => (
                                             <div key={index} className="flex items-start space-x-3">
-                                                <img
-                                                    src={comment.user.avatar || 'https://via.placeholder.com/32x32'}
-                                                    alt={comment.user.name}
-                                                    className="w-8 h-8 rounded-full"
-                                                />
+                                                <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center">
+                                                    <span className="text-xs text-gray-600">用户</span>
+                                                </div>
                                                 <div className="flex-1">
                                                     <div className="flex items-center space-x-2 mb-1">
-                                                        <span className="font-medium text-gray-900">{comment.user.name}</span>
-                                                        <span className="text-gray-500 text-sm">{comment.time}</span>
+                                                        <span className="font-medium text-sm">
+                                                            用户{comment.userId}
+                                                        </span>
+                                                        <span className="text-gray-500 text-xs">
+                                                            {new Date(comment.time).toLocaleString()}
+                                                        </span>
                                                     </div>
-                                                    <p className="text-gray-700">{comment.content}</p>
+                                                    <p className="text-gray-700 text-sm">{comment.content}</p>
                                                 </div>
                                             </div>
                                         ))}
@@ -214,19 +269,19 @@ const BlindBoxDetailPage = ({ blindBox, onBack, onEdit, onDelete, currentUserId 
                                 <div className="space-y-4">
                                     <div className="flex justify-between">
                                         <span className="text-gray-600">系列</span>
-                                        <span className="font-medium">{blindBox.series}</span>
+                                        <span className="font-medium">{currentBlindBox.series}</span>
                                     </div>
                                     <div className="flex justify-between">
                                         <span className="text-gray-600">价格</span>
-                                        <span className="font-medium text-red-500">¥{blindBox.price}</span>
+                                        <span className="font-medium text-red-500">¥{currentBlindBox.price}</span>
                                     </div>
                                     <div className="flex justify-between">
                                         <span className="text-gray-600">点赞数</span>
-                                        <span className="font-medium">{blindBox.likes || 0}</span>
+                                        <span className="font-medium">{likeCount}</span>
                                     </div>
                                     <div className="flex justify-between">
                                         <span className="text-gray-600">评论数</span>
-                                        <span className="font-medium">{blindBox.comments?.length || 0}</span>
+                                        <span className="font-medium">{currentBlindBox.comments?.length || 0}</span>
                                     </div>
                                 </div>
                             </div>
@@ -236,7 +291,7 @@ const BlindBoxDetailPage = ({ blindBox, onBack, onEdit, onDelete, currentUserId 
                                 <h3 className="text-lg font-semibold text-gray-900 mb-4">包含物品</h3>
 
                                 <div className="space-y-3">
-                                    {blindBox.items?.map((item, index) => (
+                                    {currentBlindBox.items?.map((item, index) => (
                                         <div key={index} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
                                             <span className="font-medium">{item.name}</span>
                                             <span className="text-blue-600 font-semibold">{(item.probability * 100).toFixed(1)}%</span>
@@ -248,7 +303,7 @@ const BlindBoxDetailPage = ({ blindBox, onBack, onEdit, onDelete, currentUserId 
                             {/* 购买按钮 */}
                             <div className="bg-white rounded-lg shadow-md p-6">
                                 <button className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white py-3 px-6 rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all duration-200 font-medium text-lg">
-                                    🛒 立即购买 ¥{blindBox.price}
+                                    🛒 立即购买 ¥{currentBlindBox.price}
                                 </button>
                             </div>
                         </div>

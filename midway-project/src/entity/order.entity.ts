@@ -2,33 +2,66 @@ import { Column, Entity, PrimaryGeneratedColumn, CreateDateColumn } from "typeor
 
 @Entity('order')
 export class Order {
-    @PrimaryGeneratedColumn() id: number;
+    @PrimaryGeneratedColumn()
+    id: number;
 
-    @Column() userId: number; // 用户ID
+    // 用户ID
+    @Column()
+    userId: number;
 
-    @Column() blindBoxId: number; // 盲盒ID
+    // 盲盒ID
+    @Column()
+    blindBoxId: number;
 
-    @Column() quantity: number; // 购买数量
+    // 购买数量
+    @Column()
+    quantity: number;
 
-    @Column() totalPrice: number; // 总价格
+    // 总价格
+    @Column()
+    totalPrice: number;
 
-    @Column({ default: 'pending' }) status: string; // 订单状态: pending, paid, shipped, delivered, cancelled
+    // 订单状态
+    @Column({ default: 'pending' })
+    status: string;
 
-    @Column({ nullable: true }) shippingAddress: string; // 收货地址
+    // 收货地址
+    @Column({ nullable: true })
+    shippingAddress: string;
 
-    @Column({ nullable: true }) contactPhone: string; // 联系电话
+    // 联系电话
+    @Column({ nullable: true })
+    contactPhone: string;
 
-    @Column({ nullable: true }) contactName: string; // 联系人姓名
+    // 联系人姓名
+    @Column({ nullable: true })
+    contactName: string;
 
-    @CreateDateColumn() createTime: Date; // 创建时间
+    // 抽奖结果
+    @Column('simple-json', { nullable: true })
+    items: { name: string; probability: number }[];
 
-    @Column({ nullable: true }) payTime: Date; // 支付时间
+    // 创建时间
+    @CreateDateColumn()
+    createTime: Date;
 
-    @Column({ nullable: true }) shipTime: Date; // 发货时间
+    // 支付时间
+    @Column({ nullable: true })
+    payTime: Date;
 
-    @Column({ nullable: true }) deliverTime: Date; // 送达时间
+    // 发货时间
+    @Column({ nullable: true })
+    shipTime: Date;
 
-    @Column({ nullable: true }) cancelTime: Date; // 取消时间
+    // 送达时间
+    @Column({ nullable: true })
+    deliverTime: Date;
 
-    @Column({ nullable: true }) cancelReason: string; // 取消原因
+    // 取消时间
+    @Column({ nullable: true })
+    cancelTime: Date;
+
+    // 取消原因
+    @Column({ nullable: true })
+    cancelReason: string;
 } 

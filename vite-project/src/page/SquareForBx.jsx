@@ -1,14 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { orderAPI, blindBoxAPI } from '../services/api';
 import NotificationPage from './NotificationPage';
 
 const SquareForBx = ({ blindBox, currentUserId, onDelete, onViewDetail, onEdit }) => {
-    const [isLiked, setIsLiked] = useState(false);
+    const [isLiked, setIsLiked] = useState(blindBox.likedUsers?.includes(currentUserId) || false);
     const [likeCount, setLikeCount] = useState(blindBox.likes || 0);
     const [showComments, setShowComments] = useState(false);
     const [showPurchaseModal, setShowPurchaseModal] = useState(false);
     const [showOptionsMenu, setShowOptionsMenu] = useState(false);
     const [purchaseQuantity, setPurchaseQuantity] = useState(1);
     const [notification, setNotification] = useState(null);
+    const [purchaseResult, setPurchaseResult] = useState(null);
     const menuRef = useRef(null);
 
     // 点击外部关闭菜单
@@ -28,26 +30,64 @@ const SquareForBx = ({ blindBox, currentUserId, onDelete, onViewDetail, onEdit }
         };
     }, [showOptionsMenu]);
 
-    const handleLike = () => {
-        if (isLiked) {
-            setLikeCount(likeCount - 1);
-        } else {
-            setLikeCount(likeCount + 1);
+    const handleLike = async () => {
+        if (!currentUserId) {
+            setNotification({ message: '请先登录', type: 'error' });
+            return;
         }
-        setIsLiked(!isLiked);
+
+        try {
+            const response = isLiked
+                ? await blindBoxAPI.unlikeBlindBox(blindBox.id, currentUserId)
+                : await blindBoxAPI.likeBlindBox(blindBox.id, currentUserId);
+
+            if (response.success) {
+                setIsLiked(!isLiked);
+                setLikeCount(response.data.likes);
+                setNotification({
+                    message: isLiked ? '取消点赞成功' : '点赞成功',
+                    type: 'success'
+                });
+            } else {
+                setNotification({ message: response.message, type: 'error' });
+            }
+        } catch (error) {
+            setNotification({ message: '操作失败', type: 'error' });
+        }
     };
 
     const handlePurchase = () => {
         setShowPurchaseModal(true);
     };
 
-    const handleConfirmPurchase = () => {
-        setNotification({
-            message: `购买成功！\n商品：${blindBox.title}\n数量：${purchaseQuantity}\n总价：¥${blindBox.price * purchaseQuantity}`,
-            type: 'success'
-        });
-        setShowPurchaseModal(false);
-        setPurchaseQuantity(1);
+    const handleConfirmPurchase = async () => {
+        try {
+            const user = JSON.parse(localStorage.getItem('user'));
+            if (!user) {
+                setNotification({ message: '请先登录', type: 'error' });
+                return;
+            }
+
+            const result = await orderAPI.purchaseBlindBox({
+                userId: user.id,
+                blindBoxId: blindBox.id,
+                quantity: purchaseQuantity
+            });
+
+            if (result.success) {
+                setPurchaseResult(result.data);
+                setNotification({
+                    message: `购买成功！\n抽到了：${result.data.items.map(item => item.name).join(', ')}`,
+                    type: 'success'
+                });
+                setShowPurchaseModal(false);
+                setPurchaseQuantity(1);
+            } else {
+                setNotification({ message: result.message || '购买失败', type: 'error' });
+            }
+        } catch (error) {
+            setNotification({ message: '购买失败，请稍后重试', type: 'error' });
+        }
     };
 
     const handleCancelPurchase = () => {
@@ -69,13 +109,13 @@ const SquareForBx = ({ blindBox, currentUserId, onDelete, onViewDetail, onEdit }
                 <div className="flex items-center p-4 border-b border-gray-100">
                     <div className="w-10 h-10 rounded-full overflow-hidden mr-3">
                         <img
-                            src={blindBox.user.avatar || 'https://via.placeholder.com/40x40'}
-                            alt={blindBox.user.name}
+                            src={blindBox.user?.avatar || 'https://via.placeholder.com/40x40'}
+                            alt={blindBox.user?.name || '用户'}
                             className="w-full h-full object-cover"
                         />
                     </div>
                     <div className="flex-1">
-                        <div className="font-semibold text-gray-900 text-sm">{blindBox.user.name}</div>
+                        <div className="font-semibold text-gray-900 text-sm">{blindBox.user?.name || '用户'}</div>
                         <div className="text-gray-500 text-xs">{blindBox.postTime}</div>
                     </div>
                     <div className="relative" ref={menuRef}>
@@ -87,35 +127,26 @@ const SquareForBx = ({ blindBox, currentUserId, onDelete, onViewDetail, onEdit }
                                 <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
                             </svg>
                         </button>
-
-                        {/* 下拉菜单 */}
                         {showOptionsMenu && (
-                            <div className="absolute right-0 top-8 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10 min-w-[120px]">
+                            <div className="absolute right-0 mt-2 w-32 bg-white rounded-md shadow-lg py-1 z-10">
                                 <button
                                     onClick={() => {
                                         setShowOptionsMenu(false);
                                         if (onViewDetail) onViewDetail(blindBox);
                                     }}
-                                    className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+                                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                                 >
-                                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                    </svg>
                                     查看详情
                                 </button>
-                                {currentUserId && blindBox.userId === currentUserId && (
+                                {currentUserId === blindBox.userId && (
                                     <>
                                         <button
                                             onClick={() => {
                                                 setShowOptionsMenu(false);
                                                 if (onEdit) onEdit(blindBox);
                                             }}
-                                            className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+                                            className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                                         >
-                                            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                            </svg>
                                             编辑
                                         </button>
                                         <button
@@ -123,11 +154,8 @@ const SquareForBx = ({ blindBox, currentUserId, onDelete, onViewDetail, onEdit }
                                                 setShowOptionsMenu(false);
                                                 if (onDelete) onDelete(blindBox.id);
                                             }}
-                                            className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center"
+                                            className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
                                         >
-                                            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                            </svg>
                                             删除
                                         </button>
                                     </>
@@ -142,225 +170,76 @@ const SquareForBx = ({ blindBox, currentUserId, onDelete, onViewDetail, onEdit }
                     <img
                         src={blindBox.image}
                         alt={blindBox.title}
-                        className="w-full h-80 object-cover"
+                        className="w-full h-48 object-cover"
                     />
-                    {/* 盲盒标签 */}
-                    <div className="absolute top-3 left-3 bg-red-500 text-white px-2 py-1 rounded-full text-xs font-medium">
-                        {blindBox.category}
-                    </div>
-                    {/* 价格标签 */}
-                    <div className="absolute top-3 right-3 bg-black bg-opacity-70 text-white px-2 py-1 rounded text-xs">
+                    <div className="absolute top-2 left-2 bg-red-500 text-white px-2 py-1 rounded-full text-xs">
                         ¥{blindBox.price}
                     </div>
                 </div>
 
                 {/* 内容区域 */}
                 <div className="p-4">
-                    {/* 标题 */}
-                    <h3 className="font-bold text-gray-900 text-lg mb-2 line-clamp-2">
-                        {blindBox.title}
-                    </h3>
+                    <h3 className="font-bold text-gray-900 text-lg mb-2">{blindBox.title}</h3>
+                    <p className="text-gray-600 text-sm mb-3 line-clamp-2">{blindBox.description}</p>
 
-                    {/* 描述 */}
-                    <p className="text-gray-600 text-sm mb-3 line-clamp-3">
-                        {blindBox.description}
-                    </p>
-
-                    {/* 标签 */}
-                    <div className="flex flex-wrap gap-2 mb-3">
-                        {blindBox.tags.map((tag, index) => (
-                            <span
-                                key={index}
-                                className="bg-gray-100 text-gray-600 px-2 py-1 rounded-full text-xs"
-                            >
-                                #{tag}
-                            </span>
-                        ))}
+                    {/* 统计信息 */}
+                    <div className="flex items-center justify-between text-sm text-gray-500 mb-3">
+                        <span>点赞 {likeCount}</span>
+                        <span>评论 {blindBox.comments?.length || 0}</span>
                     </div>
 
-                    {/* 盲盒信息 */}
-                    <div className="bg-gray-50 rounded-lg p-3 mb-3">
-                        <div className="flex justify-between items-center text-sm">
-                            <span className="text-gray-600">盲盒系列</span>
-                            <span className="font-medium">{blindBox.series}</span>
-                        </div>
-                        {/* 展示 items 物品及概率 */}
-                        <div className="mt-2">
-                            <span className="text-gray-600 text-sm">包含物品：</span>
-                            <ul className="ml-2 list-disc text-sm">
-                                {blindBox.items && blindBox.items.map((item, idx) => (
-                                    <li key={idx}>{item.name}（概率：{item.probability}）</li>
-                                ))}
-                            </ul>
-                        </div>
-                    </div>
-
-                    {/* 购买按钮 */}
-                    <div className="mb-3">
+                    {/* 操作按钮 */}
+                    <div className="flex space-x-2">
+                        <button
+                            onClick={handleLike}
+                            className={`flex-1 py-2 px-3 rounded-lg transition ${isLiked
+                                ? 'bg-red-500 text-white'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                }`}
+                        >
+                            {isLiked ? '已点赞' : '点赞'}
+                        </button>
                         <button
                             onClick={handlePurchase}
-                            className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white py-2 px-4 rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all duration-200 font-medium"
+                            className="flex-1 py-2 px-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
                         >
-                            🛒 立即购买 ¥{blindBox.price}
+                            购买
                         </button>
                     </div>
-
-                    {/* 互动按钮 */}
-                    <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-                        <div className="flex items-center space-x-4">
-                            <button
-                                onClick={handleLike}
-                                className={`flex items-center space-x-1 ${isLiked ? 'text-red-500' : 'text-gray-500'
-                                    } hover:text-red-500 transition-colors`}
-                            >
-                                <svg className="w-5 h-5" fill={isLiked ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                                </svg>
-                                <span className="text-sm">{likeCount}</span>
-                            </button>
-
-                            <button
-                                onClick={() => setShowComments(!showComments)}
-                                className="flex items-center space-x-1 text-gray-500 hover:text-gray-700 transition-colors"
-                            >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                                </svg>
-                                <span className="text-sm">{blindBox.comments?.length || 0}</span>
-                            </button>
-
-                            <button className="flex items-center space-x-1 text-gray-500 hover:text-gray-700 transition-colors">
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" />
-                                </svg>
-                                <span className="text-sm">分享</span>
-                            </button>
-                        </div>
-                        {/* 删除按钮，仅限本人 */}
-                        {currentUserId && blindBox.userId === currentUserId && (
-                            <button
-                                className="text-red-500 hover:text-red-700 transition-colors ml-2"
-                                onClick={() => onDelete && onDelete(blindBox.id)}
-                            >
-                                删除
-                            </button>
-                        )}
-                    </div>
-
-                    {/* 评论区域 */}
-                    {showComments && blindBox.comments && (
-                        <div className="mt-3 pt-3 border-t border-gray-100">
-                            <div className="space-y-2">
-                                {blindBox.comments.map((comment, index) => (
-                                    <div key={index} className="flex items-start space-x-2">
-                                        <img
-                                            src={comment.user.avatar || 'https://via.placeholder.com/24x24'}
-                                            alt={comment.user.name}
-                                            className="w-6 h-6 rounded-full"
-                                        />
-                                        <div className="flex-1">
-                                            <div className="text-sm">
-                                                <span className="font-medium text-gray-900">{comment.user.name}</span>
-                                                <span className="text-gray-600 ml-2">{comment.content}</span>
-                                            </div>
-                                            <div className="text-xs text-gray-500 mt-1">{comment.time}</div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
                 </div>
             </div>
 
             {/* 购买弹窗 */}
             {showPurchaseModal && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
                     <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-lg font-semibold text-gray-900">购买盲盒</h3>
-                            <button
-                                onClick={handleCancelPurchase}
-                                className="text-gray-400 hover:text-gray-600"
-                            >
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                            </button>
-                        </div>
-
+                        <h3 className="text-lg font-bold mb-4">购买盲盒</h3>
                         <div className="mb-4">
-                            <div className="flex items-center space-x-3 mb-3">
-                                <img
-                                    src={blindBox.image}
-                                    alt={blindBox.title}
-                                    className="w-16 h-16 object-cover rounded-lg"
+                            <p className="text-gray-600 mb-2">盲盒：{blindBox.title}</p>
+                            <p className="text-gray-600 mb-2">价格：¥{blindBox.price}</p>
+                            <div className="flex items-center space-x-2">
+                                <label className="text-gray-600">数量：</label>
+                                <input
+                                    type="number"
+                                    min="1"
+                                    max="10"
+                                    value={purchaseQuantity}
+                                    onChange={(e) => setPurchaseQuantity(parseInt(e.target.value) || 1)}
+                                    className="w-20 p-1 border rounded"
                                 />
-                                <div className="flex-1">
-                                    <h4 className="font-medium text-gray-900 text-sm line-clamp-2">{blindBox.title}</h4>
-                                    <p className="text-red-500 font-semibold">¥{blindBox.price}</p>
-                                </div>
                             </div>
-
-                            <div className="bg-gray-50 rounded-lg p-3 mb-4">
-                                <div className="flex justify-between items-center text-sm mb-2">
-                                    <span className="text-gray-600">系列</span>
-                                    <span className="font-medium">{blindBox.series}</span>
-                                </div>
-                                {/* 展示 items 物品及概率 */}
-                                <div className="mt-2">
-                                    <span className="text-gray-600 text-sm">包含物品：</span>
-                                    <ul className="ml-2 list-disc text-sm">
-                                        {blindBox.items && blindBox.items.map((item, idx) => (
-                                            <li key={idx}>{item.name}（概率：{item.probability}）</li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            </div>
+                            <p className="text-gray-600 mt-2">总价：¥{blindBox.price * purchaseQuantity}</p>
                         </div>
-
-                        <div className="mb-4">
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                购买数量
-                            </label>
-                            <div className="flex items-center space-x-3">
-                                <button
-                                    onClick={() => setPurchaseQuantity(Math.max(1, purchaseQuantity - 1))}
-                                    className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-50"
-                                >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-                                    </svg>
-                                </button>
-                                <span className="text-lg font-medium min-w-[3rem] text-center">{purchaseQuantity}</span>
-                                <button
-                                    onClick={() => setPurchaseQuantity(purchaseQuantity + 1)}
-                                    className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-50"
-                                >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                                    </svg>
-                                </button>
-                            </div>
-                        </div>
-
-                        <div className="border-t border-gray-200 pt-4 mb-4">
-                            <div className="flex justify-between items-center text-lg font-semibold">
-                                <span>总计</span>
-                                <span className="text-red-500">¥{blindBox.price * purchaseQuantity}</span>
-                            </div>
-                        </div>
-
                         <div className="flex space-x-3">
                             <button
                                 onClick={handleCancelPurchase}
-                                className="flex-1 py-2 px-4 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                                className="flex-1 py-2 px-4 border border-gray-300 rounded hover:bg-gray-50"
                             >
                                 取消
                             </button>
                             <button
                                 onClick={handleConfirmPurchase}
-                                className="flex-1 py-2 px-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all duration-200"
+                                className="flex-1 py-2 px-4 bg-blue-500 text-white rounded hover:bg-blue-600"
                             >
                                 确认购买
                             </button>

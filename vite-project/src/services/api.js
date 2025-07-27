@@ -35,8 +35,10 @@ const request = async (endpoint, options = {}) => {
 
 // 盲盒相关API
 export const blindBoxAPI = {
-    // 获取全部盲盒
-    getAllBlindBoxes: () => request('/blindboxes'),
+    // 获取盲盒列表（支持分页）
+    async getBlindBoxes(page = 1, limit = 12) {
+        return await request(`/blindboxes?page=${page}&limit=${limit}`);
+    },
 
     // 获取单个盲盒
     getBlindBox: (id) => request(`/blindboxes/${id}`),
@@ -59,13 +61,15 @@ export const blindBoxAPI = {
     }),
 
     // 点赞盲盒
-    likeBlindBox: (id) => request(`/blindboxes/${id}/like`, {
-        method: 'POST'
+    likeBlindBox: (id, userId) => request(`/blindboxes/${id}/like`, {
+        method: 'POST',
+        body: JSON.stringify({ userId })
     }),
 
     // 取消点赞
-    unlikeBlindBox: (id) => request(`/blindboxes/${id}/unlike`, {
-        method: 'DELETE'
+    unlikeBlindBox: (id, userId) => request(`/blindboxes/${id}/unlike`, {
+        method: 'DELETE',
+        body: JSON.stringify({ userId })
     }),
 
     // 添加评论
@@ -97,7 +101,7 @@ export const blindBoxAPI = {
                     // 提取 Base64 数据（去掉 data:image/...;base64, 前缀）
                     const base64 = e.target.result.split(',')[1];
 
-                    const response = await fetch('/api/blindboxes/upload', {
+                    const response = await fetch(`${API_BASE_URL}/blindboxes/upload`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -123,6 +127,12 @@ export const blindBoxAPI = {
 
 // 订单相关API
 export const orderAPI = {
+    // 购买盲盒
+    purchaseBlindBox: (data) => request('/orders/purchase', {
+        method: 'POST',
+        body: JSON.stringify(data)
+    }),
+
     // 获取用户订单列表
     getUserOrders: (userId) => request(`/orders/user/${userId}`),
 
@@ -219,10 +229,69 @@ export const searchAPI = {
     },
 };
 
+// 玩家秀相关API
+export const playerShowAPI = {
+    // 获取玩家秀列表（支持分页）
+    async getPlayerShows(page = 1, limit = 12) {
+        return await request(`/playershows?page=${page}&limit=${limit}`);
+    },
+
+    // 获取单个玩家秀
+    getPlayerShow: (id) => request(`/playershows/${id}`),
+
+    // 创建玩家秀
+    createPlayerShow: (data) => request('/playershows', {
+        method: 'POST',
+        body: JSON.stringify(data)
+    }),
+
+    // 更新玩家秀
+    updatePlayerShow: (id, data) => request(`/playershows/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data)
+    }),
+
+    // 删除玩家秀
+    deletePlayerShow: (id, userId) => request(`/playershows/${id}`, {
+        method: 'DELETE',
+        body: JSON.stringify({ userId })
+    }),
+
+    // 点赞玩家秀
+    likePlayerShow: (id, userId) => request(`/playershows/${id}/like`, {
+        method: 'POST',
+        body: JSON.stringify({ userId })
+    }),
+
+    // 取消点赞
+    unlikePlayerShow: (id, userId) => request(`/playershows/${id}/unlike`, {
+        method: 'DELETE',
+        body: JSON.stringify({ userId })
+    }),
+
+    // 添加评论
+    addComment: (id, comment) => request(`/playershows/${id}/comments`, {
+        method: 'POST',
+        body: JSON.stringify(comment)
+    }),
+
+    // 获取用户的玩家秀
+    getUserPlayerShows: (userId) => request(`/playershows/user/${userId}`),
+
+    // 获取盲盒的玩家秀
+    getBlindBoxPlayerShows: (blindBoxId) => request(`/playershows/blindbox/${blindBoxId}`),
+
+    // 初始化示例数据
+    initData: () => request('/playershows/init', {
+        method: 'POST'
+    })
+};
+
 export default {
     blindBox: blindBoxAPI,
     user: userAPI,
     order: orderAPI,
     favorite: favoriteAPI,
     search: searchAPI,
+    playerShow: playerShowAPI,
 }; 

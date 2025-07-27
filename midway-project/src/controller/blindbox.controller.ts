@@ -150,16 +150,42 @@ export class BlindBoxController {
         }
     }
 
-    // 获取全部盲盒
+    // 获取全部盲盒（支持分页）
     @Get('/')
-    async getAll() {
-        return await this.blindBoxService.getAllBlindBoxes();
+    async getAll(@Query('page') page: number = 1, @Query('limit') limit: number = 12) {
+        try {
+            const result = await this.blindBoxService.getAllBlindBoxes(page, limit);
+            return {
+                success: true,
+                ...result
+            };
+        } catch (error) {
+            return {
+                success: false,
+                message: error.message
+            };
+        }
     }
 
     // 获取单个盲盒
     @Get('/:id')
     async getOne(@Param('id') id: number) {
-        return await this.blindBoxService.blindBoxModel.findOne({ where: { id } });
+        const box = await this.blindBoxService.blindBoxModel.findOne({ where: { id } });
+        if (!box) {
+            return { success: false, message: '盲盒不存在' };
+        }
+
+        // 添加用户信息
+        const boxWithUser = {
+            ...box,
+            user: {
+                name: "盲盒爱好者",
+                avatar: "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=40&h=40&fit=crop&crop=face"
+            },
+            likedUsers: box.likedUsers || []
+        };
+
+        return { success: true, data: boxWithUser };
     }
 
     // 创建盲盒
@@ -183,20 +209,35 @@ export class BlindBoxController {
 
     // 点赞
     @Post('/:id/like')
-    async like(@Param('id') id: number) {
-        return await this.blindBoxService.likeBlindBox(id);
+    async like(@Param('id') id: number, @Body() data: any) {
+        try {
+            const result = await this.blindBoxService.likeBlindBox(id, data.userId);
+            return { success: true, data: result };
+        } catch (error) {
+            return { success: false, message: error.message };
+        }
     }
 
     // 取消点赞
     @Del('/:id/unlike')
-    async unlike(@Param('id') id: number) {
-        return await this.blindBoxService.unlikeBlindBox(id);
+    async unlike(@Param('id') id: number, @Body() data: any) {
+        try {
+            const result = await this.blindBoxService.unlikeBlindBox(id, data.userId);
+            return { success: true, data: result };
+        } catch (error) {
+            return { success: false, message: error.message };
+        }
     }
 
     // 添加评论
     @Post('/:id/comments')
     async addComment(@Param('id') id: number, @Body() comment: any) {
-        return await this.blindBoxService.addComment(id, comment);
+        try {
+            const result = await this.blindBoxService.addComment(id, comment);
+            return { success: true, data: result };
+        } catch (error) {
+            return { success: false, message: error.message };
+        }
     }
 
     // 获取评论列表

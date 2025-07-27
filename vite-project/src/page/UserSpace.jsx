@@ -273,27 +273,53 @@ const UserSpace = ({ onBack }) => {
                                                     创建时间: {new Date(order.createTime).toLocaleString()}
                                                 </p>
                                             </div>
-                                            <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(order.status)}`}>
+                                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
                                                 {getStatusText(order.status)}
                                             </span>
                                         </div>
-                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
                                             <div>
-                                                <span className="text-gray-600">盲盒ID:</span>
-                                                <span className="ml-2 font-medium">{order.blindBoxId}</span>
+                                                <p className="text-sm text-gray-600">盲盒ID: {order.blindBoxId}</p>
+                                                <p className="text-sm text-gray-600">数量: {order.quantity}</p>
+                                                <p className="text-sm text-gray-600">总价: ¥{order.totalPrice}</p>
                                             </div>
                                             <div>
-                                                <span className="text-gray-600">数量:</span>
-                                                <span className="ml-2 font-medium">{order.quantity}</span>
+                                                <p className="text-sm text-gray-600">联系人: {order.contactName || '未填写'}</p>
+                                                <p className="text-sm text-gray-600">电话: {order.contactPhone || '未填写'}</p>
+                                                <p className="text-sm text-gray-600">地址: {order.shippingAddress || '未填写'}</p>
                                             </div>
-                                            <div>
-                                                <span className="text-gray-600">总价:</span>
-                                                <span className="ml-2 font-medium text-red-600">¥{order.totalPrice}</span>
+                                        </div>
+
+                                        {/* 抽奖结果 */}
+                                        {order.items && order.items.length > 0 && (
+                                            <div className="bg-blue-50 rounded-lg p-3 mb-3">
+                                                <h5 className="font-medium text-blue-900 mb-2">🎉 抽奖结果</h5>
+                                                <div className="space-y-1">
+                                                    {order.items.map((item, index) => (
+                                                        <div key={index} className="flex items-center justify-between text-sm">
+                                                            <span className="text-blue-800">第 {index + 1} 个盲盒:</span>
+                                                            <span className="font-medium text-blue-900">{item.name}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
                                             </div>
-                                            <div>
-                                                <span className="text-gray-600">联系人:</span>
-                                                <span className="ml-2 font-medium">{order.contactName || '未填写'}</span>
-                                            </div>
+                                        )}
+
+                                        {/* 时间信息 */}
+                                        <div className="text-xs text-gray-500 space-y-1">
+                                            {order.payTime && (
+                                                <p>支付时间: {new Date(order.payTime).toLocaleString()}</p>
+                                            )}
+                                            {order.shipTime && (
+                                                <p>发货时间: {new Date(order.shipTime).toLocaleString()}</p>
+                                            )}
+                                            {order.deliverTime && (
+                                                <p>送达时间: {new Date(order.deliverTime).toLocaleString()}</p>
+                                            )}
+                                            {order.cancelTime && (
+                                                <p>取消时间: {new Date(order.cancelTime).toLocaleString()}</p>
+                                            )}
                                         </div>
                                     </div>
                                 ))}

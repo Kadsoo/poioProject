@@ -2,6 +2,7 @@ import { MidwayConfig } from '@midwayjs/core';
 import { User } from '../entity/user.entity';
 import { BlindBox } from '../entity/blindbox.entity';
 import { Order } from '../entity/order.entity';
+import { PlayerShow } from '../entity/playershow.entity';
 
 export default {
   // use for cookie sign key, should change to your own and keep security
@@ -16,7 +17,7 @@ export default {
         database: 'webapp.sqlite',
         synchronize: true,
         logging: true,
-        entities: [User, BlindBox, Order]
+        entities: [User, BlindBox, Order, PlayerShow]
       }
     }
   }

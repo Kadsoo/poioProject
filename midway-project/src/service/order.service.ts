@@ -1,16 +1,51 @@
-import { Provide } from '@midwayjs/core';
+import { Provide, Inject } from '@midwayjs/core';
 import { InjectEntityModel } from '@midwayjs/typeorm';
 import { Repository } from 'typeorm';
 import { Order } from '../entity/order.entity';
+import { BlindBoxService } from './blindbox.service';
 
 @Provide()
 export class OrderService {
-    @InjectEntityModel(Order) orderModel: Repository<Order>;
+    @InjectEntityModel(Order)
+    orderModel: Repository<Order>;
 
-    // 创建订单
-    async createOrder(data: Partial<Order>) {
-        const order = this.orderModel.create(data);
-        return await this.orderModel.save(order);
+    @Inject()
+    blindBoxService: BlindBoxService;
+
+    // 创建订单（购买盲盒）
+    async createOrder(userId: number, blindBoxId: number, quantity: number = 1, shippingInfo?: any) {
+        try {
+            // 购买盲盒并抽奖
+            const purchaseResult = await this.blindBoxService.purchaseBlindBox(blindBoxId, userId, quantity);
+
+            // 创建订单
+            const order = this.orderModel.create({
+                userId,
+                blindBoxId,
+                quantity,
+                totalPrice: purchaseResult.totalPrice,
+                items: purchaseResult.items,
+                status: 'pending',
+                shippingAddress: shippingInfo?.address,
+                contactPhone: shippingInfo?.phone,
+                contactName: shippingInfo?.name
+            });
+
+            const savedOrder = await this.orderModel.save(order);
+
+            return {
+                success: true,
+                data: {
+                    order: savedOrder,
+                    items: purchaseResult.items
+                }
+            };
+        } catch (error) {
+            return {
+                success: false,
+                message: error.message
+            };
+        }
     }
 
     // 获取用户订单列表
@@ -27,7 +62,7 @@ export class OrderService {
     }
 
     // 更新订单状态
-    async updateOrderStatus(id: number, status: string, additionalData?: any) {
+    async updateOrderStatus(id: number, status: string) {
         const order = await this.orderModel.findOne({ where: { id } });
         if (!order) {
             throw new Error('订单不存在');
@@ -35,23 +70,19 @@ export class OrderService {
 
         order.status = status;
 
-        // 根据状态更新时间字段
-        const now = new Date();
+        // 根据状态更新时间
         switch (status) {
             case 'paid':
-                order.payTime = now;
+                order.payTime = new Date();
                 break;
             case 'shipped':
-                order.shipTime = now;
+                order.shipTime = new Date();
                 break;
             case 'delivered':
-                order.deliverTime = now;
+                order.deliverTime = new Date();
                 break;
             case 'cancelled':
-                order.cancelTime = now;
-                if (additionalData?.cancelReason) {
-                    order.cancelReason = additionalData.cancelReason;
-                }
+                order.cancelTime = new Date();
                 break;
         }
 
@@ -60,11 +91,8 @@ export class OrderService {
 
     // 删除订单
     async deleteOrder(id: number) {
-        const order = await this.orderModel.findOne({ where: { id } });
-        if (!order) {
-            throw new Error('订单不存在');
-        }
-        return await this.orderModel.remove(order);
+        await this.orderModel.delete(id);
+        return { success: true };
     }
 
     // 获取用户订单统计
@@ -78,7 +106,7 @@ export class OrderService {
             shipped: orders.filter(o => o.status === 'shipped').length,
             delivered: orders.filter(o => o.status === 'delivered').length,
             cancelled: orders.filter(o => o.status === 'cancelled').length,
-            totalAmount: orders.reduce((sum, o) => sum + o.totalPrice, 0)
+            totalAmount: orders.reduce((sum, order) => sum + order.totalPrice, 0)
         };
 
         return stats;
