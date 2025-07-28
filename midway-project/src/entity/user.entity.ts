@@ -18,6 +18,9 @@ export class User {
     @Column()
     phone: string;
 
+    @Column({ nullable: true })
+    avatar: string;
+
     @CreateDateColumn()
     registerDate: Date;
 }

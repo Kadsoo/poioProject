@@ -113,7 +113,7 @@ const NotificationPage = ({
                         {onCancel && (
                             <button
                                 onClick={onCancel}
-                                className="px-3 py-1 bg-white bg-opacity-20 text-white rounded text-sm hover:bg-opacity-30 transition-colors"
+                                className="px-3 py-1 bg-white bg-opacity-20 text-grey-600 rounded text-sm hover:bg-opacity-30 transition-colors"
                             >
                                 {cancelText}
                             </button>

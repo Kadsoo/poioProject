@@ -109,14 +109,20 @@ const SquareForBx = ({ blindBox, currentUserId, onDelete, onViewDetail, onEdit }
                 <div className="flex items-center p-4 border-b border-gray-100">
                     <div className="w-10 h-10 rounded-full overflow-hidden mr-3">
                         <img
-                            src={blindBox.user?.avatar || 'https://via.placeholder.com/40x40'}
+                            src={blindBox.user?.avatar?.startsWith('http') ? blindBox.user.avatar : `http://127.0.0.1:7001${blindBox.user?.avatar || '/avatar.jpg'}`}
                             alt={blindBox.user?.name || '用户'}
                             className="w-full h-full object-cover"
+                            onError={(e) => {
+                                console.log('头像加载失败:', e.target.src);
+                                // 如果加载失败，使用默认头像
+                                if (e.target.src !== "http://127.0.0.1:7001/avatar.jpg") {
+                                    e.target.src = "http://127.0.0.1:7001/avatar.jpg";
+                                }
+                            }}
                         />
                     </div>
                     <div className="flex-1">
                         <div className="font-semibold text-gray-900 text-sm">{blindBox.user?.name || '用户'}</div>
-                        <div className="text-gray-500 text-xs">{blindBox.postTime}</div>
                     </div>
                     <div className="relative" ref={menuRef}>
                         <button
@@ -168,9 +174,9 @@ const SquareForBx = ({ blindBox, currentUserId, onDelete, onViewDetail, onEdit }
                 {/* 盲盒图片 */}
                 <div className="relative">
                     <img
-                        src={blindBox.image}
+                        src={blindBox.image.startsWith('http') ? blindBox.image : `http://127.0.0.1:7001${blindBox.image}`}
                         alt={blindBox.title}
-                        className="w-full h-48 object-cover"
+                        className="w-full h-48 object-cover rounded-t-lg"
                     />
                     <div className="absolute top-2 left-2 bg-red-500 text-white px-2 py-1 rounded-full text-xs">
                         ¥{blindBox.price}

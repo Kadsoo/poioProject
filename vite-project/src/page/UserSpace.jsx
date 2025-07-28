@@ -1,16 +1,23 @@
-import React, { useState, useEffect } from 'react';
-import { userAPI, orderAPI } from '../services/api';
+import React, { useState, useEffect, useMemo } from 'react';
+import { userAPI, orderAPI, blindBoxAPI } from '../services/api';
 import NotificationPage from './NotificationPage';
+import AvatarUpload from '../components/AvatarUpload';
 
 const UserSpace = ({ onBack }) => {
     const [userInfo, setUserInfo] = useState(null);
     const [userStats, setUserStats] = useState(null);
     const [orders, setOrders] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [notification, setNotification] = useState(null);
+    const [myBlindBoxes, setMyBlindBoxes] = useState([]);
     const [isEditing, setIsEditing] = useState(false);
     const [editForm, setEditForm] = useState({});
+    const [notification, setNotification] = useState(null);
+    const [loading, setLoading] = useState(true);
     const user = JSON.parse(localStorage.getItem('user'));
+
+    // 使用useMemo优化头像URL
+    const avatarUrl = useMemo(() => {
+        return userInfo?.avatar || "/avatar.jpg";
+    }, [userInfo?.avatar]);
 
     useEffect(() => {
         if (user?.id) {
@@ -74,6 +81,19 @@ const UserSpace = ({ onBack }) => {
             username: userInfo?.username || '',
             mail: userInfo?.mail || '',
             phone: userInfo?.phone || ''
+        });
+    };
+
+    const handleAvatarUpdate = (updatedUser) => {
+        setUserInfo(updatedUser);
+        // 更新localStorage中的用户信息
+        const currentUser = JSON.parse(localStorage.getItem('user'));
+        localStorage.setItem('user', JSON.stringify({ ...currentUser, avatar: updatedUser.avatar }));
+
+        // 显示成功通知
+        setNotification({
+            type: 'success',
+            message: '头像更新成功！'
         });
     };
 
@@ -147,9 +167,13 @@ const UserSpace = ({ onBack }) => {
                         <div className="flex items-center space-x-6 mb-6">
                             <div className="relative">
                                 <img
-                                    src="https://images.unsplash.com/photo-1494790108755-2616b612b786?w=100&h=100&fit=crop&crop=face"
+                                    src={userInfo?.avatar || "http://127.0.0.1:7001/avatar.jpg"}
                                     alt="用户头像"
                                     className="w-24 h-24 rounded-full object-cover"
+                                    onError={(e) => {
+                                        console.log('头像加载失败:', e.target.src);
+                                        e.target.src = "http://127.0.0.1:7001/avatar.jpg";
+                                    }}
                                 />
                             </div>
                             <div className="flex-1">
@@ -167,6 +191,15 @@ const UserSpace = ({ onBack }) => {
                                     编辑资料
                                 </button>
                             )}
+                        </div>
+
+                        {/* 头像上传组件 */}
+                        <div className="mb-6">
+                            <AvatarUpload
+                                userId={user?.id}
+                                currentAvatar={userInfo?.avatar}
+                                onAvatarUpdate={handleAvatarUpdate}
+                            />
                         </div>
 
                         {/* 统计信息 */}

@@ -170,22 +170,12 @@ export class BlindBoxController {
     // 获取单个盲盒
     @Get('/:id')
     async getOne(@Param('id') id: number) {
-        const box = await this.blindBoxService.blindBoxModel.findOne({ where: { id } });
-        if (!box) {
-            return { success: false, message: '盲盒不存在' };
+        try {
+            const box = await this.blindBoxService.getOne(id);
+            return { success: true, data: box };
+        } catch (error) {
+            return { success: false, message: error.message };
         }
-
-        // 添加用户信息
-        const boxWithUser = {
-            ...box,
-            user: {
-                name: "盲盒爱好者",
-                avatar: "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=40&h=40&fit=crop&crop=face"
-            },
-            likedUsers: box.likedUsers || []
-        };
-
-        return { success: true, data: boxWithUser };
     }
 
     // 创建盲盒

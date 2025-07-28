@@ -94,4 +94,21 @@ export class UserController {
       return { success: false, message: error.message };
     }
   }
+
+  // 更新用户头像
+  @Post('/:userId/avatar')
+  async updateAvatar(@Param('userId') userId: number, @Body() data: any) {
+    try {
+      const { avatarUrl } = data;
+
+      if (!avatarUrl) {
+        return { success: false, message: '头像URL不能为空' };
+      }
+
+      const user = await this.userService.updateAvatar(userId, avatarUrl);
+      return { success: true, data: user };
+    } catch (error) {
+      return { success: false, message: error.message };
+    }
+  }
 }

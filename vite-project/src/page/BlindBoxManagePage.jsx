@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { blindBoxAPI } from '../services/api';
 import NotificationPage from './NotificationPage';
 import BlindBoxCreatePage from './BlindBoxCreatePage';
+import PurchaseRecordsPage from './PurchaseRecordsPage';
 
 const BlindBoxManagePage = ({ onBack, currentUserId }) => {
     const [myBlindBoxes, setMyBlindBoxes] = useState([]);
@@ -9,6 +10,8 @@ const BlindBoxManagePage = ({ onBack, currentUserId }) => {
     const [notification, setNotification] = useState(null);
     const [editingBlindBox, setEditingBlindBox] = useState(null);
     const [showCreatePage, setShowCreatePage] = useState(false);
+    const [selectedBlindBox, setSelectedBlindBox] = useState(null);
+    const [showPurchaseRecords, setShowPurchaseRecords] = useState(false);
 
     // 获取我的盲盒列表
     useEffect(() => {
@@ -41,14 +44,15 @@ const BlindBoxManagePage = ({ onBack, currentUserId }) => {
         }
     };
 
-    const handleDeleteBlindBox = async (id) => {
+    // 删除盲盒
+    const handleDeleteBlindBox = async (blindBoxId) => {
         setNotification({
             message: '确定要删除这个盲盒吗？',
             type: 'confirm',
             onConfirm: async () => {
                 try {
-                    await blindBoxAPI.deleteBlindBox(id);
-                    setMyBlindBoxes(myBlindBoxes.filter(box => box.id !== id));
+                    await blindBoxAPI.deleteBlindBox(blindBoxId);
+                    fetchMyBlindBoxes();
                     setNotification({ message: '删除成功', type: 'success' });
                 } catch (error) {
                     setNotification({ message: '删除失败', type: 'error' });
@@ -57,6 +61,25 @@ const BlindBoxManagePage = ({ onBack, currentUserId }) => {
             onCancel: () => setNotification(null)
         });
     };
+
+    // 查看购买记录
+    const handleViewPurchaseRecords = (blindBox) => {
+        setSelectedBlindBox(blindBox);
+        setShowPurchaseRecords(true);
+    };
+
+    // 如果显示购买记录页面
+    if (showPurchaseRecords && selectedBlindBox) {
+        return (
+            <PurchaseRecordsPage
+                blindBoxId={selectedBlindBox.id}
+                onBack={() => {
+                    setShowPurchaseRecords(false);
+                    setSelectedBlindBox(null);
+                }}
+            />
+        );
+    }
 
     const handleEditBlindBox = (blindBox) => {
         setEditingBlindBox(blindBox);
@@ -169,7 +192,7 @@ const BlindBoxManagePage = ({ onBack, currentUserId }) => {
                                 {/* 盲盒图片 */}
                                 <div className="relative">
                                     <img
-                                        src={blindBox.image}
+                                        src={`${blindBox.image.startsWith('http') ? blindBox.image : `http://127.0.0.1:7001${blindBox.image}`}?t=${Date.now()}`}
                                         alt={blindBox.title}
                                         className="w-full h-48 object-cover"
                                     />
@@ -210,6 +233,12 @@ const BlindBoxManagePage = ({ onBack, currentUserId }) => {
                                             className="flex-1 bg-red-500 text-white py-2 px-3 rounded-lg hover:bg-red-600 transition text-sm"
                                         >
                                             删除
+                                        </button>
+                                        <button
+                                            onClick={() => handleViewPurchaseRecords(blindBox)}
+                                            className="flex-1 bg-purple-500 text-white py-2 px-3 rounded-lg hover:bg-purple-600 transition text-sm"
+                                        >
+                                            购买记录
                                         </button>
                                     </div>
                                 </div>

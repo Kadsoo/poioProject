@@ -19,6 +19,11 @@ const request = async (endpoint, options = {}) => {
         },
     };
 
+    // 如果是GET请求且有body，移除body
+    if (!config.method || config.method.toUpperCase() === 'GET') {
+        delete config.body;
+    }
+
     try {
         const response = await fetch(url, config);
 
@@ -154,7 +159,13 @@ export const orderAPI = {
     // 删除订单
     deleteOrder: (id) => request(`/orders/${id}`, {
         method: 'DELETE'
-    })
+    }),
+
+    // 获取盲盒的购买记录
+    getBlindBoxOrders: (blindBoxId) => request(`/orders/blindbox/${blindBoxId}`),
+
+    // 获取盲盒所有者的购买记录
+    getBlindBoxOwnerOrders: (blindBoxId, userId) => request(`/orders/blindbox/${blindBoxId}/owner?userId=${userId}`)
 };
 
 // 用户相关API
@@ -180,8 +191,14 @@ export const userAPI = {
         body: JSON.stringify(data)
     }),
 
-    // 获取用户统计数据
-    getUserStats: (userId) => request(`/user/${userId}/stats`)
+    // 获取用户统计信息
+    getUserStats: (userId) => request(`/user/${userId}/stats`),
+
+    // 更新用户头像
+    updateAvatar: (userId, avatarUrl) => request(`/user/${userId}/avatar`, {
+        method: 'POST',
+        body: JSON.stringify({ avatarUrl })
+    })
 };
 
 // 收藏相关API
@@ -285,6 +302,40 @@ export const playerShowAPI = {
     initData: () => request('/playershows/init', {
         method: 'POST'
     })
+};
+
+// 图片上传API
+export const uploadAPI = {
+    // 上传图片
+    uploadImage: (file) => {
+        return new Promise((resolve, reject) => {
+            console.log('Uploading file:', file);
+
+            const formData = new FormData();
+            formData.append('image', file);
+
+            fetch(`${API_BASE_URL}/upload/image`, {
+                method: 'POST',
+                body: formData
+            })
+                .then(response => {
+                    console.log('Upload response status:', response.status);
+                    return response.json();
+                })
+                .then(result => {
+                    console.log('Upload result:', result);
+                    if (result.success) {
+                        resolve(result.url);
+                    } else {
+                        reject(new Error(result.message || '上传失败'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Upload error:', error);
+                    reject(error);
+                });
+        });
+    }
 };
 
 export default {

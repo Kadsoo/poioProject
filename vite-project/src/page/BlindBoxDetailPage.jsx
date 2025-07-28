@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { blindBoxAPI } from '../services/api';
 import NotificationPage from './NotificationPage';
+import PurchaseRecordsPage from './PurchaseRecordsPage';
 
 const BlindBoxDetailPage = ({ blindBox, onBack, onEdit, onDelete, currentUserId }) => {
     const [showComments, setShowComments] = useState(false);
@@ -9,6 +10,13 @@ const BlindBoxDetailPage = ({ blindBox, onBack, onEdit, onDelete, currentUserId 
     const [isLiked, setIsLiked] = useState(blindBox.likedUsers?.includes(currentUserId) || false);
     const [likeCount, setLikeCount] = useState(blindBox.likes || 0);
     const [currentBlindBox, setCurrentBlindBox] = useState(blindBox);
+    const [showPurchaseRecords, setShowPurchaseRecords] = useState(false);
+    const [loading, setLoading] = useState(false);
+
+    // 使用useMemo优化头像URL
+    const avatarUrl = useMemo(() => {
+        return currentBlindBox?.user?.avatar || "/avatar.jpg";
+    }, [currentBlindBox?.user?.avatar]);
 
     const handleAddComment = async () => {
         if (!newComment.trim()) {
@@ -73,6 +81,16 @@ const BlindBoxDetailPage = ({ blindBox, onBack, onEdit, onDelete, currentUserId 
         setNotification({ message: '链接已复制到剪贴板', type: 'success' });
     };
 
+    // 如果显示购买记录页面
+    if (showPurchaseRecords) {
+        return (
+            <PurchaseRecordsPage
+                blindBoxId={currentBlindBox.id}
+                onBack={() => setShowPurchaseRecords(false)}
+            />
+        );
+    }
+
     return (
         <div className="min-h-screen bg-gray-50">
             {notification && (
@@ -113,6 +131,12 @@ const BlindBoxDetailPage = ({ blindBox, onBack, onEdit, onDelete, currentUserId 
                                     >
                                         删除
                                     </button>
+                                    <button
+                                        onClick={() => setShowPurchaseRecords(true)}
+                                        className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition"
+                                    >
+                                        购买记录
+                                    </button>
                                 </>
                             )}
                         </div>
@@ -126,7 +150,7 @@ const BlindBoxDetailPage = ({ blindBox, onBack, onEdit, onDelete, currentUserId 
                     <div className="bg-white rounded-lg shadow-md overflow-hidden mb-6">
                         <div className="relative">
                             <img
-                                src={currentBlindBox.image}
+                                src={currentBlindBox.image.startsWith('http') ? currentBlindBox.image : `http://127.0.0.1:7001${currentBlindBox.image}`}
                                 alt={currentBlindBox.title}
                                 className="w-full h-96 object-cover"
                             />
@@ -146,9 +170,13 @@ const BlindBoxDetailPage = ({ blindBox, onBack, onEdit, onDelete, currentUserId 
                                 {/* 用户信息 */}
                                 <div className="flex items-center mb-4">
                                     <img
-                                        src={currentBlindBox.user?.avatar || 'https://via.placeholder.com/48x48'}
+                                        src={currentBlindBox.user?.avatar || "http://127.0.0.1:7001/avatar.jpg"}
                                         alt={currentBlindBox.user?.name || '用户'}
-                                        className="w-12 h-12 rounded-full mr-3"
+                                        className="w-12 h-12 rounded-full object-cover"
+                                        onError={(e) => {
+                                            console.log('头像加载失败:', e.target.src);
+                                            e.target.src = "http://127.0.0.1:7001/avatar.jpg";
+                                        }}
                                     />
                                     <div>
                                         <div className="font-semibold text-gray-900">

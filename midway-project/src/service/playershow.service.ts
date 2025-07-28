@@ -3,6 +3,7 @@ import { InjectEntityModel } from '@midwayjs/typeorm';
 import { Repository } from 'typeorm';
 import { PlayerShow } from '../entity/playershow.entity';
 import { Order } from '../entity/order.entity';
+import { User } from '../entity/user.entity';
 
 @Provide()
 export class PlayerShowService {
@@ -11,6 +12,9 @@ export class PlayerShowService {
 
     @InjectEntityModel(Order)
     orderModel: Repository<Order>;
+
+    @InjectEntityModel(User)
+    userModel: Repository<User>;
 
     // 创建玩家秀
     async createPlayerShow(data: Partial<PlayerShow>) {
@@ -30,8 +34,9 @@ export class PlayerShowService {
     // 获取所有玩家秀（支持分页）
     async getAllPlayerShows(page: number = 1, limit: number = 12) {
         const skip = (page - 1) * limit;
-        
+
         const [playerShows, total] = await this.playerShowModel.findAndCount({
+            relations: ['user'],
             skip,
             take: limit,
             order: { createTime: 'DESC' }
@@ -71,10 +76,15 @@ export class PlayerShowService {
     }
 
     // 更新玩家秀
-    async updatePlayerShow(id: number, data: Partial<PlayerShow>) {
+    async updatePlayerShow(id: number, data: Partial<PlayerShow>, userId?: number) {
         const playerShow = await this.playerShowModel.findOne({ where: { id } });
         if (!playerShow) {
             throw new Error('玩家秀不存在');
+        }
+
+        // 如果提供了userId，验证权限
+        if (userId && playerShow.userId !== userId) {
+            throw new Error('只能编辑自己的玩家秀');
         }
 
         Object.assign(playerShow, data);

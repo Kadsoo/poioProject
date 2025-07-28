@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Del, Param, Body, Inject } from '@midwayjs/core';
+import { Controller, Get, Post, Put, Del, Param, Body, Query, Inject } from '@midwayjs/core';
 import { OrderService } from '../service/order.service';
 
 @Controller('/api/orders')
@@ -77,6 +77,34 @@ export class OrderController {
         try {
             await this.orderService.deleteOrder(id);
             return { success: true, message: '订单删除成功' };
+        } catch (error) {
+            return { success: false, message: error.message };
+        }
+    }
+
+    // 获取盲盒的购买记录
+    @Get('/blindbox/:blindBoxId')
+    async getBlindBoxOrders(@Param('blindBoxId') blindBoxId: number) {
+        try {
+            const orders = await this.orderService.getBlindBoxOrders(blindBoxId);
+            return { success: true, data: orders };
+        } catch (error) {
+            return { success: false, message: error.message };
+        }
+    }
+
+    // 获取盲盒所有者的购买记录（需要验证权限）
+    @Get('/blindbox/:blindBoxId/owner')
+    async getBlindBoxOwnerOrders(@Param('blindBoxId') blindBoxId: number, @Query('userId') userId: number) {
+        try {
+            const result = await this.orderService.getBlindBoxOwnerOrders(blindBoxId);
+
+            // 验证是否是盲盒所有者
+            if (result.blindBox.userId !== userId) {
+                return { success: false, message: '无权限查看此盲盒的购买记录' };
+            }
+
+            return { success: true, data: result };
         } catch (error) {
             return { success: false, message: error.message };
         }

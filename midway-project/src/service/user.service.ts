@@ -82,6 +82,21 @@ export class UserService {
     return await this.userModel.save(user);
   }
 
+  // 更新用户头像
+  async updateAvatar(userId: number, avatarUrl: string) {
+    const user = await this.userModel.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new Error('用户不存在');
+    }
+
+    user.avatar = avatarUrl;
+    const savedUser = await this.userModel.save(user);
+
+    // 返回用户信息（不包含密码）
+    const { password: _, ...userInfo } = savedUser;
+    return userInfo;
+  }
+
   // 获取用户统计数据
   async getUserStats(userId: number) {
     const [blindBoxStats, orderStats] = await Promise.all([

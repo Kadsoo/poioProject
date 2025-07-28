@@ -2,12 +2,16 @@ import { Provide, Inject } from '@midwayjs/core';
 import { InjectEntityModel } from '@midwayjs/typeorm';
 import { Repository } from 'typeorm';
 import { Order } from '../entity/order.entity';
+import { BlindBox } from '../entity/blindbox.entity';
 import { BlindBoxService } from './blindbox.service';
 
 @Provide()
 export class OrderService {
     @InjectEntityModel(Order)
     orderModel: Repository<Order>;
+
+    @InjectEntityModel(BlindBox)
+    blindBoxModel: Repository<BlindBox>;
 
     @Inject()
     blindBoxService: BlindBoxService;
@@ -110,5 +114,33 @@ export class OrderService {
         };
 
         return stats;
+    }
+
+    // 获取盲盒的购买记录
+    async getBlindBoxOrders(blindBoxId: number) {
+        return await this.orderModel.find({
+            where: { blindBoxId },
+            order: { createTime: 'DESC' }
+        });
+    }
+
+    // 获取盲盒所有者的购买记录
+    async getBlindBoxOwnerOrders(blindBoxId: number) {
+        // 先获取盲盒信息
+        const blindBox = await this.blindBoxModel.findOne({ where: { id: blindBoxId } });
+        if (!blindBox) {
+            throw new Error('盲盒不存在');
+        }
+
+        // 获取该盲盒的所有订单
+        const orders = await this.orderModel.find({
+            where: { blindBoxId },
+            order: { createTime: 'DESC' }
+        });
+
+        return {
+            blindBox,
+            orders
+        };
     }
 } 

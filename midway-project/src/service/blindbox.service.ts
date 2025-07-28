@@ -1,12 +1,25 @@
-import { Provide, Inject } from '@midwayjs/core';
+import { Provide } from '@midwayjs/core';
 import { InjectEntityModel } from '@midwayjs/typeorm';
 import { Repository } from 'typeorm';
 import { BlindBox } from '../entity/blindbox.entity';
+import { User } from '../entity/user.entity';
 
 @Provide()
 export class BlindBoxService {
     @InjectEntityModel(BlindBox)
     blindBoxModel: Repository<BlindBox>;
+
+    @InjectEntityModel(User)
+    userModel: Repository<User>;
+
+    // 获取用户信息的辅助方法
+    private async getUserInfo(userId: number) {
+        const user = await this.userModel.findOne({ where: { id: userId } });
+        return {
+            name: user?.username || "未知用户",
+            avatar: user?.avatar || "/avatar.jpg" // 使用相对路径，让前端处理完整URL
+        };
+    }
 
     // 创建盲盒
     async createBlindBox(data: Partial<BlindBox>) {
@@ -31,13 +44,13 @@ export class BlindBoxService {
         });
 
         // 为每个盲盒添加用户信息
-        const blindBoxesWithUser = blindBoxes.map(box => ({
-            ...box,
-            user: {
-                name: "盲盒爱好者",
-                avatar: "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=40&h=40&fit=crop&crop=face"
-            },
-            likedUsers: box.likedUsers || []
+        const blindBoxesWithUser = await Promise.all(blindBoxes.map(async (box) => {
+            const userInfo = await this.getUserInfo(box.userId);
+            return {
+                ...box,
+                user: userInfo,
+                likedUsers: box.likedUsers || []
+            };
         }));
 
         return {
@@ -55,10 +68,22 @@ export class BlindBoxService {
     // 根据title或tag查找盲盒
     async searchBlindBoxes(keyword: string) {
         // tag 作为 items.name 匹配
-        return await this.blindBoxModel.createQueryBuilder('blindbox')
+        const blindBoxes = await this.blindBoxModel.createQueryBuilder('blindbox')
             .where('blindbox.title LIKE :kw', { kw: `%${keyword}%` })
             .orWhere(`json_extract(blindbox.items, '$[*].name') LIKE :kw`, { kw: `%${keyword}%` })
             .getMany();
+
+        // 为每个盲盒添加用户信息
+        const blindBoxesWithUser = await Promise.all(blindBoxes.map(async (box) => {
+            const userInfo = await this.getUserInfo(box.userId);
+            return {
+                ...box,
+                user: userInfo,
+                likedUsers: box.likedUsers || []
+            };
+        }));
+
+        return blindBoxesWithUser;
     }
 
     // 点赞
@@ -74,12 +99,10 @@ export class BlindBoxService {
             const savedBox = await this.blindBoxModel.save(box);
 
             // 返回带用户信息的盲盒数据
+            const userInfo = await this.getUserInfo(box.userId);
             return {
                 ...savedBox,
-                user: {
-                    name: "盲盒爱好者",
-                    avatar: "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=40&h=40&fit=crop&crop=face"
-                },
+                user: userInfo,
                 likedUsers: savedBox.likedUsers || []
             };
         } else {
@@ -101,12 +124,10 @@ export class BlindBoxService {
             const savedBox = await this.blindBoxModel.save(box);
 
             // 返回带用户信息的盲盒数据
+            const userInfo = await this.getUserInfo(savedBox.userId);
             return {
                 ...savedBox,
-                user: {
-                    name: "盲盒爱好者",
-                    avatar: "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=40&h=40&fit=crop&crop=face"
-                },
+                user: userInfo,
                 likedUsers: savedBox.likedUsers || []
             };
         } else {
@@ -129,12 +150,10 @@ export class BlindBoxService {
         const savedBox = await this.blindBoxModel.save(box);
 
         // 返回带用户信息的盲盒数据
+        const userInfo = await this.getUserInfo(savedBox.userId);
         return {
             ...savedBox,
-            user: {
-                name: "盲盒爱好者",
-                avatar: "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=40&h=40&fit=crop&crop=face"
-            },
+            user: userInfo,
             likedUsers: savedBox.likedUsers || []
         };
     }
@@ -147,14 +166,16 @@ export class BlindBoxService {
         });
 
         // 为每个盲盒添加用户信息
-        return blindBoxes.map(box => ({
-            ...box,
-            user: {
-                name: "盲盒爱好者",
-                avatar: "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=40&h=40&fit=crop&crop=face"
-            },
-            likedUsers: box.likedUsers || []
+        const blindBoxesWithUser = await Promise.all(blindBoxes.map(async (box) => {
+            const userInfo = await this.getUserInfo(box.userId);
+            return {
+                ...box,
+                user: userInfo,
+                likedUsers: box.likedUsers || []
+            };
         }));
+
+        return blindBoxesWithUser;
     }
 
     // 获取盲盒统计信息
@@ -212,5 +233,21 @@ export class BlindBoxService {
 
         // 如果概率总和不为1，返回最后一个物品
         return items[items.length - 1];
+    }
+
+    // 获取单个盲盒
+    async getOne(id: number) {
+        const blindBox = await this.blindBoxModel.findOne({ where: { id } });
+        if (!blindBox) {
+            throw new Error('盲盒不存在');
+        }
+
+        // 添加用户信息
+        const userInfo = await this.getUserInfo(blindBox.userId);
+        return {
+            ...blindBox,
+            user: userInfo,
+            likedUsers: blindBox.likedUsers || []
+        };
     }
 }

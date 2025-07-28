@@ -8,6 +8,9 @@ import PlayerShowPage from './PlayerShowPage';
 import NotificationPage from './NotificationPage';
 import { blindBoxAPI } from '../services/api';
 
+// 使用React.memo优化SquareForBx组件
+const MemoizedSquareForBx = React.memo(SquareForBx);
+
 const HomePage = ({ onLogout }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('全部');
@@ -18,7 +21,7 @@ const HomePage = ({ onLogout }) => {
     const [loadingMore, setLoadingMore] = useState(false);
     const [showCreatePage, setShowCreatePage] = useState(false);
     const [selectedBlindBox, setSelectedBlindBox] = useState(null);
-    const user = JSON.parse(localStorage.getItem('user'));
+    const [user, setUser] = useState(() => JSON.parse(localStorage.getItem('user')));
     const [notification, setNotification] = useState(null);
 
     // 分页状态
@@ -29,6 +32,17 @@ const HomePage = ({ onLogout }) => {
     // 从后端获取盲盒数据
     useEffect(() => {
         fetchBlindBoxes();
+    }, []);
+
+    // 监听用户状态变化
+    useEffect(() => {
+        const handleUserChange = () => {
+            const currentUser = JSON.parse(localStorage.getItem('user'));
+            setUser(currentUser);
+        };
+
+        window.addEventListener('storage', handleUserChange);
+        return () => window.removeEventListener('storage', handleUserChange);
     }, []);
 
     const fetchBlindBoxes = async (pageNum = 1, append = false) => {
@@ -359,7 +373,7 @@ const HomePage = ({ onLogout }) => {
                 {!loading && (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                         {sortedBlindBoxes.map(blindBox => (
-                            <SquareForBx
+                            <MemoizedSquareForBx
                                 key={blindBox.id}
                                 blindBox={blindBox}
                                 currentUserId={user?.id}

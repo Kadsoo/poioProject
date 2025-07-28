@@ -58,7 +58,7 @@ export class PlayerShowController {
     @Put('/:id')
     async update(@Param('id') id: number, @Body() data: any) {
         try {
-            const result = await this.playerShowService.updatePlayerShow(id, data);
+            const result = await this.playerShowService.updatePlayerShow(id, data, data.userId);
             return { success: true, data: result };
         } catch (error) {
             return { success: false, message: error.message };

@@ -40,18 +40,8 @@ export class MainConfiguration {
     this.app.useFilter([NotFoundFilter, DefaultErrorFilter]);
     this.app.useMiddleware([ReportMiddleware]);
 
-    // 添加静态文件服务 - 只在非API路径时提供
+    // 添加静态文件服务
     const serve = require('koa-static');
-    const staticMiddleware = serve(join(__dirname, '../public'));
-
-    this.app.use(async (ctx, next) => {
-      // 如果是API请求，跳过静态文件服务
-      if (ctx.path.startsWith('/api/')) {
-        await next();
-      } else {
-        // 非API请求才提供静态文件服务
-        await staticMiddleware(ctx, next);
-      }
-    });
+    this.app.use(serve(join(__dirname, '../public')));
   }
 }
