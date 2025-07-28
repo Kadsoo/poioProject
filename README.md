@@ -5,7 +5,7 @@
 ## 📋 项目信息
 
 ### 前后端代码库地址
-- **GitHub链接**: [待添加]()
+- **GitHub链接**: [https://github.com/Kadsoo/poioProject/tree/master]()
 - **项目类型**: 全栈Web应用
 - **开发语言**: TypeScript (后端) + JavaScript (前端)
 
