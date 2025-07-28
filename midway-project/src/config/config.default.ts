@@ -5,6 +5,7 @@ export default {
   keys: '1703123456789_1234',
   koa: {
     port: 7001,
+    host: '0.0.0.0', // 允许所有IP访问，使其他设备可以连接
     // 添加安全的Cookie配置
     cookie: {
       secure: false, // 开发环境设为false，生产环境设为true
