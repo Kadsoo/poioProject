@@ -36,4 +36,13 @@ export class HomeController {
       }
     };
   }
+
+  // 添加一个测试路由，用于验证前端路由
+  @Get('/test-spa')
+  async testSPA() {
+    return {
+      message: 'SPA路由测试成功',
+      timestamp: new Date().toISOString()
+    };
+  }
 }

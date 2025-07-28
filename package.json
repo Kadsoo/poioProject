@@ -1,0 +1,22 @@
+{
+    "name": "poio-blindbox-project",
+    "version": "1.0.0",
+    "description": "Poio Blind Box 盲盒社区项目",
+    "scripts": {
+        "build": "node build.js",
+        "build:docker": "docker build -t poio-blindbox .",
+        "start:docker": "docker-compose up -d",
+        "stop:docker": "docker-compose down",
+        "dev:frontend": "cd vite-project && npm run dev",
+        "dev:backend": "cd midway-project && npm run dev",
+        "install:all": "npm install && cd vite-project && npm install && cd ../midway-project && npm install"
+    },
+    "keywords": [
+        "blindbox",
+        "community",
+        "react",
+        "midway"
+    ],
+    "author": "Poio Team",
+    "license": "MIT"
+}

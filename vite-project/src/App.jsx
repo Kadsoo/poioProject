@@ -22,6 +22,7 @@ const App = () => {
 
   // 登录时设置状态
   const handleLogin = () => {
+    console.log('登录成功，切换到主页');
     setIsLoggedIn(true);
   };
 
@@ -39,6 +40,11 @@ const App = () => {
     window.addEventListener('storage', onStorage);
     return () => window.removeEventListener('storage', onStorage);
   }, []);
+
+  // 添加调试信息
+  useEffect(() => {
+    console.log('当前登录状态:', isLoggedIn);
+  }, [isLoggedIn]);
 
   return (
     <>

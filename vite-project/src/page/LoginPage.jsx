@@ -25,6 +25,7 @@ export class LoginPage extends React.Component {
 
     handleLogin = async (e) => {
         e.preventDefault();
+        console.log('开始登录流程...');
         // 登录逻辑
         try {
             const data = await userAPI.login({
@@ -32,20 +33,27 @@ export class LoginPage extends React.Component {
                 password: this.state.password,
             });
 
+            console.log('登录API响应:', data);
+
             if (data.success) {
+                console.log('登录成功，保存用户信息');
                 this.showNotification('登录成功！', 'success');
-                if (this.props.onLogin) {
-                    this.props.onLogin();
-                }
                 // 保存用户信息
                 localStorage.setItem('user', JSON.stringify(data.data));
-                // 跳转到个人主页
-                window.location.href = `/profile/${data.data.id}`;
+                console.log('用户信息已保存到localStorage');
+                // 调用父组件的登录回调
+                if (this.props.onLogin) {
+                    console.log('调用父组件登录回调');
+                    this.props.onLogin();
+                } else {
+                    console.log('父组件没有提供onLogin回调');
+                }
             } else {
+                console.log('登录失败:', data.message);
                 this.showNotification(data.message || '登录失败', 'error');
             }
         } catch (error) {
-            console.error('登录失败:', error);
+            console.error('登录异常:', error);
             this.showNotification(error.data?.message || '登录失败', 'error');
         }
     };
